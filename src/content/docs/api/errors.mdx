@@ -47,6 +47,7 @@ Every error response has an `x-openpike-request-id` header.
 | `400` | `unsupported_parameter` | On `/v1/responses`: `"background": true`, which OpenPike does not support yet because a background response carries no usage |
 | `401` | `invalid_virtual_key` | Missing, unknown or revoked virtual key, or a key disabled because the plan allows fewer keys |
 | `403` | `provider_disabled` | The provider is in the catalog but not enabled yet |
+| `403` | `organization_suspended` | OpenPike suspended the organization, so all its keys are stopped. The owners got an email; reply to it or write to support@openpike.dev |
 | `424` | `missing_provider_key` | The workspace has no key for that provider |
 | `429` | `budget_exceeded` | A hard budget for the workspace, the key or one of the request's tags is used up for this period. `retry-after` is the seconds until the period resets |
 | `429` | `loop_detected` | Loop detection paused the key or tag. `retry-after` is the seconds left on the pause |
