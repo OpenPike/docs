@@ -211,3 +211,7 @@ Source: Claude Code's model configuration docs, [Correct the window for a gatewa
 
 - **Token counts in `/context` are estimates.** OpenPike does not serve `/v1/messages/count_tokens`, so Claude Code estimates instead. Usage and cost in OpenPike come from the provider's own counts and are exact.
 - **Not through OpenPike:** Remote Control, voice dictation, Claude Code in Slack and cloud sessions, which need a claude.ai login or run on Anthropic's side.
+
+## Example
+
+A runnable copy of this setup, with a `.env.example`, is in the [OpenPike examples repo](https://github.com/OpenPike/examples/tree/main/coding-agents/claude-code).

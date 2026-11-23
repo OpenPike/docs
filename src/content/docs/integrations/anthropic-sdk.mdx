@@ -62,3 +62,7 @@ For one request, pass `extra_headers={...}` in Python or `{ headers: {...} }` as
 - **Does not work:** token counting (`messages.count_tokens`), the Message Batches API, the Files API and other endpoints besides `/v1/messages`.
 - **Errors** come back in Anthropic's shape. OpenPike's own `429` blocks use the error type `rate_limit_error`; a budget block is told apart from Anthropic's rate limit by its message and by the missing `x-openpike-provider` header. See [Errors](/docs/api/errors/).
 - **Retries:** the SDK retries `429` responses by default. A budget or plan block will not clear in seconds, so lower `max_retries` for agents that should stop at once.
+
+## Example
+
+Runnable copies of this setup, with a `.env.example`, are in the [OpenPike examples repo](https://github.com/OpenPike/examples): [Python](https://github.com/OpenPike/examples/tree/main/sdks/anthropic-python) and [TypeScript](https://github.com/OpenPike/examples/tree/main/sdks/anthropic-typescript).

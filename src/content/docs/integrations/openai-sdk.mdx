@@ -79,3 +79,7 @@ Use the SDK's raw response to read `x-openpike-request-id`, `x-openpike-model` a
 - **Does not work:** `client.responses.retrieve`, `.cancel`, `.delete` and `.input_items`, background responses, embeddings, images, audio, files, batches and assistants. OpenPike does not serve those endpoints.
 - **Errors** come back in OpenAI's shape, so the SDK raises its usual exceptions: `AuthenticationError` for `401`, `RateLimitError` for OpenPike's `429` blocks. Check the error `code` to tell a budget block from a provider rate limit; see [Errors](/docs/api/errors/).
 - **Retries:** the SDK retries `429` responses by default. A budget or plan block will not clear in seconds, so lower `max_retries` for agents that should stop at once.
+
+## Example
+
+Runnable copies of this setup, with a `.env.example`, are in the [OpenPike examples repo](https://github.com/OpenPike/examples): [Python](https://github.com/OpenPike/examples/tree/main/sdks/openai-python) and [TypeScript](https://github.com/OpenPike/examples/tree/main/sdks/openai-typescript).

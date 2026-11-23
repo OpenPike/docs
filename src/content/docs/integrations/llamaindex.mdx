@@ -37,3 +37,7 @@ pip install llama-index-llms-openai-like
 - To cap one agent run with a [run budget](/docs/features/run-budgets/), create the LLM per task with `x-openpike-run` in `default_headers`.
 - Embeddings are not served by OpenPike, so keep your embedding model on its own provider.
 - Set `context_window` to the real window of the model you route to, so LlamaIndex fills prompts correctly.
+
+## Example
+
+A runnable copy of this setup, with a `.env.example`, is in the [OpenPike examples repo](https://github.com/OpenPike/examples/tree/main/sdks/llamaindex).

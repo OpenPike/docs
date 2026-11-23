@@ -35,3 +35,7 @@ npm install @langchain/openai            # TypeScript
 - **Claude models** need the Anthropic format; they are not available through `ChatOpenAI`. Use an OpenAI-format model, or the [Anthropic SDK](/docs/integrations/anthropic-sdk/) directly.
 - **A run ID per task.** To cap one agent run with a [run budget](/docs/features/run-budgets/), create the model per task with `x-openpike-run` in `default_headers` (TypeScript: `configuration.defaultHeaders`), and set `max_retries=0` so a stopped run is not retried.
 - Agents, chains and tools built on `ChatOpenAI` work unchanged, and every call they make shows in OpenPike's **Logs**.
+
+## Example
+
+Runnable copies of this setup, with a `.env.example`, are in the [OpenPike examples repo](https://github.com/OpenPike/examples): [Python](https://github.com/OpenPike/examples/tree/main/sdks/langchain-python) and [TypeScript](https://github.com/OpenPike/examples/tree/main/sdks/langchain-typescript).
