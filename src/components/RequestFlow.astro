@@ -1,0 +1,41 @@
+---
+// How one request moves through OpenPike. Plain SVG, colored by CSS custom properties so it
+// follows the light and dark themes. No inline styles, so the docs CSP needs nothing for it.
+---
+
+<svg class="op-flow" viewBox="0 0 790 236" role="img" aria-labelledby="op-flow-title op-flow-desc">
+  <title id="op-flow-title">How a request flows through OpenPike</title>
+  <desc id="op-flow-desc">
+    Your agent or app sends a request with an OpenPike virtual key to api.openpike.dev. OpenPike checks the key, then budgets, pauses,
+    loop limits and plan limits, and forwards the request with your own provider key. The response streams straight back, and the
+    usage and cost are recorded after it ends.
+  </desc>
+  <defs>
+    <marker id="op-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="op-flow-arrowhead"></path>
+    </marker>
+  </defs>
+
+  <rect x="8" y="70" width="150" height="72" rx="10" class="op-flow-box"></rect>
+  <text x="83" y="100" class="op-flow-title">Your agent or app</text>
+  <text x="83" y="122" class="op-flow-note">opk_live_...</text>
+
+  <rect x="230" y="20" width="330" height="196" rx="12" class="op-flow-box op-flow-gateway"></rect>
+  <text x="395" y="48" class="op-flow-title">api.openpike.dev</text>
+  <text x="252" y="82" class="op-flow-step">1. Check the virtual key</text>
+  <text x="252" y="110" class="op-flow-step">2. Budgets, pauses, loop limits</text>
+  <text x="252" y="138" class="op-flow-step">3. Plan limits</text>
+  <text x="252" y="166" class="op-flow-step">4. Pick the model and your provider key</text>
+  <text x="252" y="194" class="op-flow-step">5. Record tokens and cost after the response</text>
+
+  <rect x="632" y="70" width="150" height="72" rx="10" class="op-flow-box"></rect>
+  <text x="707" y="100" class="op-flow-title">Provider</text>
+  <text x="707" y="122" class="op-flow-note">with your own key</text>
+
+  <line x1="160" y1="96" x2="226" y2="96" class="op-flow-line" marker-end="url(#op-arrow)"></line>
+  <line x1="564" y1="96" x2="628" y2="96" class="op-flow-line" marker-end="url(#op-arrow)"></line>
+  <line x1="628" y1="120" x2="564" y2="120" class="op-flow-line op-flow-back" marker-end="url(#op-arrow)"></line>
+  <line x1="226" y1="120" x2="160" y2="120" class="op-flow-line op-flow-back" marker-end="url(#op-arrow)"></line>
+  <text x="596" y="140" class="op-flow-note">stream</text>
+  <text x="193" y="140" class="op-flow-note">stream</text>
+</svg>

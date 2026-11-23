@@ -1,0 +1,213 @@
+---
+title: Claude Code
+description: Run Claude Code through OpenPike with environment variables, so its spend has a budget and loop detection.
+sidebar:
+  order: 1
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+{/*
+  Sources, read 2026-11-16:
+  https://code.claude.com/docs/en/llm-gateway
+  https://code.claude.com/docs/en/llm-gateway-connect.md
+  https://code.claude.com/docs/en/llm-gateway-protocol.md
+  https://code.claude.com/docs/en/model-config.md (sections "Correct the window for a gateway or custom model ID"
+    and "Which IDs CLAUDE_CODE_MAX_CONTEXT_TOKENS applies to")
+  https://api-docs.deepseek.com/quick_start/agent_integrations/claude_code
+  https://api-docs.deepseek.com/guides/anthropic_api
+  https://api-docs.deepseek.com/quick_start/pricing (1M context for deepseek-flash and deepseek-v4-pro)
+  Checked live on 2026-11-16 with Claude Code 2.1.325 against a local OpenPike gateway, with the env block below:
+  every request went to /v1/messages, answered 200, and carried the tag agent=claude-code. Also checked live the
+  same day with the three model variables set to deepseek/... names, and to an alias openpike/claude (messages
+  format, targets anthropic/claude-sonnet-5-5 then deepseek/deepseek-flash), each with CLAUDE_CODE_MAX_CONTEXT_TOKENS:
+  both answered 200 through OpenPike.
+*/}
+
+Claude Code supports LLM gateways through environment variables, so you can point it at OpenPike, give it its own virtual key, and put a budget and loop detection on it.
+
+| | |
+| --- | --- |
+| OpenPike endpoint | `POST /v1/messages` (Anthropic format) |
+| Base URL | `https://api.openpike.dev` |
+| Key | A virtual key, in `ANTHROPIC_AUTH_TOKEN` |
+| Models | `anthropic/...`, `deepseek/...` or a messages alias, set with `ANTHROPIC_DEFAULT_*_MODEL` |
+| Tags | `ANTHROPIC_CUSTOM_HEADERS` |
+
+## 1. Create a key for Claude Code
+
+On the **Keys** page, create a virtual key named for the developer, for example `claude-code-alice`, with the tag `agent=claude-code`. Then add a budget and a loop limit on that key or tag; see [Stop a runaway agent](/docs/recipes/stop-a-runaway-agent/). The workspace needs a provider key for the models you choose: Anthropic for the setup below, DeepSeek for the [DeepSeek models](#use-deepseek-models).
+
+## 2. Configure Claude Code
+
+Put the settings in the `env` block of your user settings file, `~/.claude/settings.json` (on Windows, `%USERPROFILE%\.claude\settings.json`), so they apply to every session, background agents included:
+
+```json title="~/.claude/settings.json"
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.openpike.dev",
+    "ANTHROPIC_AUTH_TOKEN": "opk_live_...",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "anthropic/claude-opus-5-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "anthropic/claude-sonnet-5-5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "anthropic/claude-haiku-5-5",
+    "ANTHROPIC_CUSTOM_HEADERS": "x-openpike-tags: agent=claude-code"
+  }
+}
+```
+
+- `ANTHROPIC_BASE_URL` points Claude Code at OpenPike. Claude Code adds `/v1/messages` itself.
+- `ANTHROPIC_AUTH_TOKEN` sends the virtual key as `Authorization: Bearer`, which OpenPike accepts. It replaces a claude.ai login for these requests, so your subscription's limits do not apply and the tokens are billed to the Anthropic key in your workspace.
+- The `ANTHROPIC_DEFAULT_*_MODEL` variables decide what Claude Code's `opus`, `sonnet` and `haiku` choices send. OpenPike needs the `anthropic/` prefix. Claude Code recognizes a name that contains a Claude model ID it knows, so it treats `anthropic/claude-sonnet-5-5` as Sonnet 5.5, with its features and context window.
+- `ANTHROPIC_CUSTOM_HEADERS` adds `x-openpike-tags` to every request, so its spend shows under the agent `claude-code`. Use one `Name: Value` per line, `\n` between them in JSON.
+
+<Aside type="caution">
+Do not put the key in a project's `.claude/settings.json`: that file is committed and shared. Use the user settings file or `.claude/settings.local.json`.
+</Aside>
+
+For a single terminal session you can set the same variables in your shell instead. On Windows the user settings file is `%USERPROFILE%\.claude\settings.json`, and the JSON above is the same there. In PowerShell, `$env:` variables last only for that window.
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+export ANTHROPIC_BASE_URL=https://api.openpike.dev
+export ANTHROPIC_AUTH_TOKEN=opk_live_...
+export ANTHROPIC_DEFAULT_OPUS_MODEL=anthropic/claude-opus-5-5
+export ANTHROPIC_DEFAULT_SONNET_MODEL=anthropic/claude-sonnet-5-5
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=anthropic/claude-haiku-5-5
+export ANTHROPIC_CUSTOM_HEADERS="x-openpike-tags: agent=claude-code"
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+# The settings file is %USERPROFILE%\.claude\settings.json, with the JSON above.
+$env:ANTHROPIC_BASE_URL = "https://api.openpike.dev"
+$env:ANTHROPIC_AUTH_TOKEN = "opk_live_..."
+$env:ANTHROPIC_DEFAULT_OPUS_MODEL = "anthropic/claude-opus-5-5"
+$env:ANTHROPIC_DEFAULT_SONNET_MODEL = "anthropic/claude-sonnet-5-5"
+$env:ANTHROPIC_DEFAULT_HAIKU_MODEL = "anthropic/claude-haiku-5-5"
+$env:ANTHROPIC_CUSTOM_HEADERS = "x-openpike-tags: agent=claude-code"
+```
+
+</TabItem>
+</Tabs>
+
+In the VS Code extension, set the same names in `claudeCode.environmentVariables` in VS Code's user settings.
+
+### A run ID per task
+
+A [run budget](/docs/features/run-budgets/) caps one task's spend, requests and time. Claude Code sends whatever `ANTHROPIC_CUSTOM_HEADERS` holds, so give each task its own run ID by setting the variable in the shell that starts it, with one header per line:
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+RUN_ID="fix-login-test-$(date +%s)"
+export ANTHROPIC_CUSTOM_HEADERS="x-openpike-tags: agent=claude-code
+x-openpike-run: $RUN_ID
+x-openpike-run-label: Fix the login test"
+claude
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+$run = "fix-login-test-$(Get-Date -UFormat %s)"
+$env:ANTHROPIC_CUSTOM_HEADERS = "x-openpike-tags: agent=claude-code`nx-openpike-run: $run`nx-openpike-run-label: Fix the login test"
+claude
+```
+
+</TabItem>
+</Tabs>
+
+Values in `settings.json` are the same for every session, so leave `ANTHROPIC_CUSTOM_HEADERS` out of it when you set the run in the shell. Every request of that `claude` session then counts toward the run, and once the run reaches a cap its requests get `429 run_limit_exceeded`. Start the next task in a new shell with a new ID.
+
+## 3. Check it works
+
+1. Start `claude` and run `/status`. The **Anthropic base URL** line should show `https://api.openpike.dev`, and the auth line should name `ANTHROPIC_AUTH_TOKEN`.
+2. Send a prompt. A normal answer means the route works.
+3. Open **Logs** in OpenPike: the request is there, with the agent `claude-code`, the model and its cost.
+
+If Claude Code asks you to log in, it did not find the token: set it in the user settings file or your shell, not only in a project file.
+
+## Which models work
+
+Claude Code speaks only the Anthropic Messages format, so it can use the models OpenPike serves on `/v1/messages`:
+
+| Models | Model names | Claude Code recognizes them |
+| --- | --- | --- |
+| Anthropic | `anthropic/claude-opus-5-5`, `anthropic/claude-sonnet-5-5`, `anthropic/claude-haiku-5-5` | Yes |
+| DeepSeek, through its Anthropic-compatible endpoint | `deepseek/deepseek-v4-pro`, `deepseek/deepseek-flash` | No |
+| An [alias](/docs/features/aliases-and-fallbacks/) created with the **Messages** format | `openpike/<name>` | No |
+
+Models from OpenAI, Google and the other providers are served on chat completions only, so Claude Code cannot use them through OpenPike.
+
+Claude Code recognizes a name that contains a Claude model ID it knows, so `anthropic/claude-sonnet-5-5` gets Sonnet 5.5's context window and features. For a name it does not recognize:
+
+- It shows a warning that the model isn't recognized and which context window it assumes. With `-p` it also prints a `[claude-code:unrecognized_model]` line, even when the window is set. The requests still go through.
+- It assumes a 1M-token context window, unless you set [`CLAUDE_CODE_MAX_CONTEXT_TOKENS`](#claude_code_max_context_tokens).
+- It turns on features such as extended thinking and effort levels by matching the model name, so these may stay off.
+
+### Use DeepSeek models
+
+DeepSeek publishes its own setup for running Claude Code on its models, and OpenPike sends `deepseek/...` requests on `/v1/messages` to that same Anthropic-compatible endpoint. Add a DeepSeek key on the **Providers** page and set:
+
+```json title="~/.claude/settings.json"
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.openpike.dev",
+    "ANTHROPIC_AUTH_TOKEN": "opk_live_...",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek/deepseek-v4-pro",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek/deepseek-flash",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek/deepseek-flash",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1000000",
+    "ANTHROPIC_CUSTOM_HEADERS": "x-openpike-tags: agent=claude-code"
+  }
+}
+```
+
+DeepSeek's endpoint ignores some Anthropic fields, such as `cache_control` and `top_k`, and does not support `redacted_thinking` blocks; see DeepSeek's [Anthropic API guide](https://api-docs.deepseek.com/guides/anthropic_api).
+
+### Fall back with an alias
+
+To fall back to another model when one fails, use an alias as the model:
+
+1. On the **Routing** page, create an alias named `claude` with the format **Messages**, the policy **ordered**, and the targets `anthropic/claude-sonnet-5-5` then `deepseek/deepseek-flash`. The workspace needs a key for both providers.
+2. Set the model variables to the alias, and give Claude Code the context window:
+
+```json title="~/.claude/settings.json"
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.openpike.dev",
+    "ANTHROPIC_AUTH_TOKEN": "opk_live_...",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "openpike/claude",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "openpike/claude",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "openpike/claude",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1000000",
+    "ANTHROPIC_CUSTOM_HEADERS": "x-openpike-tags: agent=claude-code"
+  }
+}
+```
+
+Each request falls back on its own, before any of the response is sent: when Anthropic fails, that request is answered by DeepSeek and the session goes on. **Logs** shows which model served each request. You can also point only one variable at the alias, for example `ANTHROPIC_DEFAULT_SONNET_MODEL`, and keep Anthropic names for the others.
+
+### `CLAUDE_CODE_MAX_CONTEXT_TOKENS`
+
+`CLAUDE_CODE_MAX_CONTEXT_TOKENS` tells Claude Code the context window, in tokens, of a model name it does not recognize. Claude Code compacts the conversation before it reaches that size, so a request never grows beyond what the model accepts.
+
+- It applies on its own to names that Claude Code does not recognize and that do not start with `claude-` or contain `[1m]`. That covers `deepseek/...` and `openpike/...` names.
+- It has no effect on recognized names such as `anthropic/claude-sonnet-5-5` unless compaction is turned off: Claude Code already knows their window.
+- Without it, Claude Code assumes 1M tokens for an unrecognized name (200K before Claude Code 2.1.323).
+- It is one value for the whole session. With an alias, set it to the smallest context window among the alias's targets, since any of them may answer.
+
+The Claude and DeepSeek models above all have a 1M-token window, so the examples set `1000000`. That is what Claude Code would assume anyway; setting it states the window, and Claude Code no longer warns about an assumed window. If an alias includes a model with a 200K window, set `200000`, so Claude Code compacts before that model would reject the request.
+
+Source: Claude Code's model configuration docs, [Correct the window for a gateway or custom model ID](https://code.claude.com/docs/en/model-config#correct-the-window-for-a-gateway-or-custom-model-id).
+
+## What to know
+
+- **Token counts in `/context` are estimates.** OpenPike does not serve `/v1/messages/count_tokens`, so Claude Code estimates instead. Usage and cost in OpenPike come from the provider's own counts and are exact.
+- **Not through OpenPike:** Remote Control, voice dictation, Claude Code in Slack and cloud sessions, which need a claude.ai login or run on Anthropic's side.

@@ -1,0 +1,14 @@
+---
+// The provider index, generated from packages/providers/catalog.json and prices.json.
+import type { ProviderStatus } from "../lib/data";
+import { providerTable } from "../lib/tables";
+import DataTable from "./DataTable.astro";
+
+interface Props {
+  /** Comma-separated statuses: tested, available, unavailable. */
+  status: string;
+}
+const statuses = Astro.props.status.split(",").map((s) => s.trim()) as ProviderStatus[];
+---
+
+<DataTable table={providerTable(statuses)} />

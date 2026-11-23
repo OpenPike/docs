@@ -1,0 +1,30 @@
+---
+title: DeepSeek
+description: Use your DeepSeek API key through OpenPike, on both the chat completions and the messages endpoints.
+sidebar:
+  order: 4
+---
+
+import PriceTable from "../../../components/PriceTable.astro";
+
+{/* Read 2026-11-16 from https://api-docs.deepseek.com/ */}
+
+OpenPike sends `deepseek/...` models to DeepSeek with your own DeepSeek key, in either the OpenAI or the Anthropic format.
+
+## Your key
+
+Create a key at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) and add it on the **Providers** page.
+
+## Calling DeepSeek models
+
+- **Endpoints:** `POST /v1/chat/completions` (OpenAI format) and `POST /v1/messages` (Anthropic format). DeepSeek serves both, so the same key works from OpenAI SDKs and from Anthropic-format tools such as Claude Code.
+- **Model names:** `deepseek/deepseek-flash` and `deepseek/deepseek-v4-pro`, DeepSeek's current names. The older `deepseek/deepseek-chat` still works on chat completions.
+
+## Quirks
+
+- **Peak prices.** DeepSeek charges less off-peak. OpenPike prices every DeepSeek request at the peak rate, so the cost shown is an upper bound.
+- DeepSeek has retired some older models and routes their names to current ones; the price table follows DeepSeek's own list.
+
+## Prices
+
+<PriceTable provider="deepseek" />

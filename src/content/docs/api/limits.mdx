@@ -1,0 +1,37 @@
+---
+title: Rate and plan limits
+description: Every limit OpenPike can apply to a request, in the order it checks them.
+sidebar:
+  order: 4
+---
+
+import PlanTable from "../../../components/PlanTable.astro";
+
+OpenPike applies your own limits (budgets, pauses, loop limits) and your plan's limits before forwarding a request; this page lists them in the order they are checked.
+
+## Order of checks
+
+1. **Virtual key.** Invalid or revoked: `401 invalid_virtual_key`. Too many invalid keys from one IP in a minute: `429 too_many_auth_failures`.
+2. **Tags.** `x-openpike-tags` breaking the limits: `400 invalid_tags`.
+3. **Pauses.** A manual pause on the key or one of the request's tags: `429 scope_paused`. A loop pause still running: `429 loop_detected`.
+4. **Hard budgets.** Any matching budget used up for its period: `429 budget_exceeded`.
+5. **Plan's monthly requests.** Over the limit in block mode: `429 plan_limit_reached`; in throttle mode, more than 10 a minute: `429 plan_limit_throttled`.
+6. **Loop request rate.** The request would exceed a loop limit's requests per minute: `429 loop_detected`, and the scope is paused.
+7. **Run limits.** The request's run (`x-openpike-run`) has reached a spend, request or time cap: `429 run_limit_exceeded`. See [Run budgets](/docs/features/run-budgets/).
+8. **Model and provider.** Malformed body or model, unknown provider or alias: `400`. Provider not enabled: `403`. No provider key: `424`.
+
+Checks 3 to 7 run in one call to the organization's limit service, in parallel with reading the body and resolving the model, so they add little time. A request that passes them counts toward the plan's monthly requests, even if step 8 then rejects it. The provider's own rate limits apply after that as usual; its `429` comes back as `upstream_error`.
+
+## Your limits
+
+Budgets, loop limits, run limits and pauses are yours to set per workspace, key or tag. See [Budgets](/docs/features/budgets/), [Loop detection and pausing](/docs/features/loop-detection/) and [Run budgets](/docs/features/run-budgets/).
+
+## Plan limits
+
+<PlanTable />
+
+Limits count across the organization's workspaces. The monthly count resets at 00:00 UTC on the 1st. See [Billing and plan limits](/docs/features/billing-and-plan-limits/).
+
+## No per-second rate limit
+
+OpenPike sets no requests-per-second limit of its own beyond the plan's monthly requests and the throttle. Your providers' rate limits for your keys still apply.

@@ -1,0 +1,56 @@
+---
+title: FAQ
+description: Short answers to the questions people ask most about OpenPike.
+sidebar:
+  order: 1
+---
+
+This page answers the most common questions about OpenPike in a sentence or two each, with links to the details.
+
+## Does OpenPike charge for tokens?
+
+No. Your providers bill you for tokens on your own accounts, at their prices. OpenPike charges a flat plan per organization, and Free costs nothing. See [Billing and plan limits](/docs/features/billing-and-plan-limits/).
+
+## Does OpenPike store my prompts?
+
+Not unless an organization owner turns on prompt logging for a workspace, which is a Business feature and off by default. Otherwise OpenPike keeps request metadata only: model, tokens, cost, latency, status and tags. See [Prompt logging](/docs/features/prompt-logging/).
+
+## Does OpenPike add latency?
+
+OpenPike checks budgets and limits in one call, in parallel with reading your request, then streams the response straight through without buffering. The `server-timing` header on each response shows the time spent on the checks, and **Logs** shows OpenPike's overhead per request.
+
+## Which tools and SDKs work?
+
+Anything that lets you set an OpenAI-compatible or Anthropic base URL and key: Claude Code, Cursor, OpenCode, Cline, Aider, the OpenAI and Anthropic SDKs, the Vercel AI SDK, LangChain and LlamaIndex. Codex CLI works through OpenPike's Responses endpoint with OpenAI, xAI, Groq and OpenRouter models. See the [integration guides](/docs/integrations/claude-code/).
+
+## Can I call Claude models through the OpenAI format?
+
+No. OpenPike passes requests through without translating between formats, so Claude models are served on `/v1/messages` only. Use the Anthropic SDK, or a tool that speaks the Anthropic format.
+
+## What happens when a provider is down?
+
+A plain model name returns the provider's error. With an [alias](/docs/features/aliases-and-fallbacks/), OpenPike falls back to the next model in the list before anything reaches your client.
+
+## What happens when I reach a budget?
+
+At a hard limit, requests in that scope get `429 budget_exceeded` until the period resets, and never reach the provider. The request that crosses the limit completes, so spend can go slightly over it. See [Budgets](/docs/features/budgets/).
+
+## Why does a request show no cost?
+
+The model has no price in OpenPike's table yet, or the provider sent no token counts. Such requests add nothing to budgets. See [Usage and cost](/docs/features/usage-and-cost/).
+
+## Can I use OpenPike with OpenRouter?
+
+Yes, either way: add your OpenRouter key as a provider and call `openrouter/...` models, or move off OpenRouter. See [OpenRouter](/docs/providers/openrouter/) and [Migrate from OpenRouter](/docs/migrate-from-openrouter/).
+
+## Can I move from Helicone?
+
+Yes. Change the base URL, replace the Helicone key with an OpenPike virtual key, and turn Helicone properties into `x-openpike-tags`. See [Migrate from Helicone](/docs/migrate-from-helicone/).
+
+## Is there an API for budgets, keys and aliases?
+
+Not a public one yet. Manage them in the dashboard; the public API covers the inference endpoints, `/v1/models` and `/health`. See the [API reference](/docs/api/authentication/).
+
+## How do I get access?
+
+Sign-up is by invitation during early access. Write to [support@openpike.dev](mailto:support@openpike.dev), or ask someone in an organization to invite you.

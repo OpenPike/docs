@@ -1,0 +1,79 @@
+---
+title: Aliases and fallbacks
+description: Name a list of models once and use it as the model name, for fallbacks and cheapest-first routing.
+sidebar:
+  order: 4
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Example from "../../../components/Example.astro";
+
+An alias is a model name you define, such as `openpike/auto`, that stands for an ordered list of real models; OpenPike tries them in turn when one fails, so any tool that lets you set a model name gets fallbacks.
+
+## Create an alias
+
+Open **Routing** in the workspace and add an alias:
+
+- **Name:** 1 to 64 characters of `a-z`, `0-9`, `.`, `_` and `-`, starting with a letter or digit. You call it as `openpike/<name>`.
+- **Format:** the endpoint it is used on: chat completions, Responses, messages or System One. Every target must be a model that endpoint can serve.
+- **Targets:** 1 to 10 `provider/model` names. Aliases cannot point to other aliases.
+- **Policy:** `ordered` tries the targets in the order you list them. `cheapest_first` sorts them by price first (below).
+
+Members and owners can both manage aliases. Changes reach every request within a minute.
+
+## Use it
+
+Send the alias as the model. The response headers say which target served the request:
+
+<Example name="aliases/auto" />
+
+| Header | Meaning |
+| --- | --- |
+| `x-openpike-model` | The `provider/model` that served the request |
+| `x-openpike-attempts` | How many targets were tried; 1 when the first one answered |
+
+## When OpenPike falls back
+
+OpenPike moves to the next target when the current one answers with:
+
+- `429` (rate limited),
+- any `5xx`,
+- a network error, or
+- an error saying the model does not exist (`404`, or a `400` or `422` whose message says the model is unknown).
+
+Other errors, such as a `400` for a bad request body, go straight back to you: the next target would reject them too.
+
+Providers differ on some parameters (for example, OpenAI's newer models reject `max_tokens` and want `max_completion_tokens`), and OpenPike passes request bodies through unchanged, so a fallback chain should only use parameters that every target accepts.
+
+Fallback only happens **before the first byte reaches your client**. Once a response has started streaming, OpenPike never switches models in the middle of it.
+
+Limits that keep a fallback chain fast:
+
+- At most **3 attempts** per request, however many targets the alias has.
+- A target whose provider has **no key** in the workspace is skipped without a call.
+- A provider that failed **5 times in a row** moves to the end of the list for **30 seconds**: it is tried only if the other targets fail and attempts are left.
+
+Budgets, pauses and plan limits are checked once, before the first attempt.
+
+### Responses with stored state
+
+On `/v1/responses`, a request that sets `previous_response_id` or `conversation` refers to a response or conversation the provider stored. Only that provider has it, so OpenPike tries **only the alias's first target** (after `cheapest_first` ordering) and **never falls back**: an error from that target goes straight back to you. Requests without either field fall back as usual. Codex CLI sends `store: false` and the whole conversation in each request, so its requests fall back normally.
+
+## Cheapest first and `openpike/auto`
+
+With the `cheapest_first` policy, OpenPike sorts the targets by their input plus output price per million tokens, from the [price table](/docs/features/usage-and-cost/), cheapest first. Targets without a known price go last, in the order you listed them.
+
+A common setup is an alias named `auto` with `cheapest_first` and a few models you trust, for example `deepseek/deepseek-flash`, `google-ai-studio/gemini-3.6-flash` and `openai/gpt-5.4-mini`, all chat completions models. Requests to `openpike/auto` then go to the cheapest of them and fall back to the next when it fails. See [Cut cost with openpike/auto](/docs/recipes/cut-cost-with-auto/).
+
+<Aside type="note">
+`openpike/auto` is not built in: it is an alias you create, with the models you choose. Requests to an alias that does not exist get `400 invalid_model`.
+</Aside>
+
+## Errors
+
+| Error | Cause |
+| --- | --- |
+| `400 invalid_model` | The alias does not exist in this workspace |
+| `400 unsupported_format` | The alias was created for another endpoint's format |
+
+When every attempt fails, you get the last target's error, with `x-openpike-attempts` showing how many were tried. When no target could be tried at all, for example because the workspace has no key for any of their providers, you get the reason, usually `424 missing_provider_key`.

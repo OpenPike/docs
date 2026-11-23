@@ -1,0 +1,31 @@
+---
+// Renders a generated table (src/lib/tables.ts). Used by ProviderTable, PriceTable and PlanTable.
+import type { Table } from "../lib/tables";
+
+interface Props {
+  table: Table;
+  caption?: string;
+}
+const { table, caption } = Astro.props;
+---
+
+<div class="op-table-wrap">
+  <table>
+    {caption ? <caption>{caption}</caption> : null}
+    <thead>
+      <tr>{table.headers.map((h) => <th scope="col">{h}</th>)}</tr>
+    </thead>
+    <tbody>
+      {
+        table.rows.map((row) => (
+          <tr>
+            {row.map((c) => {
+              const content = c.code ? c.text.split(", ").map((t, i) => (i ? [", ", <code>{t}</code>] : <code>{t}</code>)) : c.text;
+              return <td>{c.href ? <a href={c.href}>{content}</a> : content}</td>;
+            })}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

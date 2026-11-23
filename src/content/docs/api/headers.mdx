@@ -1,0 +1,41 @@
+---
+title: Headers
+description: The request headers OpenPike reads and the response headers it adds.
+sidebar:
+  order: 2
+---
+
+OpenPike reads a few optional request headers of its own and adds a few response headers; this page lists them all.
+
+## Request headers
+
+| Header | Meaning |
+| --- | --- |
+| `Authorization` or `x-api-key` | Your virtual key. See [Authentication](/docs/api/authentication/) |
+| `x-openpike-tags` | Optional. Comma-separated `key=value` pairs merged over the virtual key's tags for this request, for example `agent=reviewer,env=prod`. At most 10 pairs; keys and values at most 64 characters. See [Virtual keys and tags](/docs/features/virtual-keys-and-tags/) |
+| `x-openpike-no-log` | Optional. `1` or `true` keeps this request out of [prompt logging](/docs/features/prompt-logging/) |
+| `x-openpike-run` | Optional. The run this request belongs to, 1 to 128 printable ASCII characters, such as a task or session ID. See [Run budgets](/docs/features/run-budgets/) |
+| `x-openpike-run-label` | Optional, with `x-openpike-run`. A human name for the run, at most 200 characters |
+| `x-openpike-run-max-usd` | Optional, with `x-openpike-run`. A spend cap in dollars for the run, for example `5` or `0.25`. Only lowers a budget's run cap |
+| `anthropic-version`, `anthropic-beta` | On `/v1/messages`, forwarded to the provider unchanged |
+
+The OpenPike headers work the same on every inference endpoint: `/v1/chat/completions`, `/v1/responses`, `/v1/messages` and `/v1/systemone`.
+
+OpenPike removes every `x-openpike-*` header and your key (`Authorization`, `x-api-key`) before forwarding the request, along with cookies, client IP and forwarding headers, Cloudflare's `cf-*` headers and connection headers. Other headers your client sends, such as an SDK's own headers, are forwarded to the provider.
+
+## Response headers
+
+| Header | When | Meaning |
+| --- | --- | --- |
+| `x-openpike-request-id` | Always | The request's ID, `req_...`, also shown in Logs. Quote it when you contact support |
+| `x-openpike-provider` | When a provider answered | The provider that served the request, or returned the error |
+| `x-openpike-model` | When a provider answered | The `provider/model` that served it; differs from the request for aliases |
+| `x-openpike-attempts` | When a provider answered | Upstream attempts; 1 when no fallback happened |
+| `server-timing` | When a provider answered | `gate;dur=<ms>`, the time spent checking budgets, pauses and plan limits |
+| `retry-after` | On OpenPike's `429` blocks, and passed through from the provider on its errors | Seconds until the request may succeed |
+
+The provider's own response headers, such as rate limit information, are passed through as well.
+
+## Telling an OpenPike block from a provider error
+
+A `429` without `x-openpike-provider` came from OpenPike itself: a budget, a pause, a loop limit or the plan's request limit. Its `code` says which (on `/v1/messages`, its message). A response with `x-openpike-provider` came from the provider. See [Errors](/docs/api/errors/).

@@ -1,0 +1,33 @@
+---
+title: Google AI Studio
+description: Use your Gemini API key from Google AI Studio through OpenPike, on the chat completions endpoint.
+sidebar:
+  order: 3
+---
+
+import PriceTable from "../../../components/PriceTable.astro";
+
+{/* Read 2026-11-16 from https://aistudio.google.com/docs/openai */}
+
+OpenPike sends `google-ai-studio/...` models to Gemini through Google's OpenAI-compatible endpoint, with your own Gemini API key.
+
+## Your key
+
+Create a Gemini API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and add it on the **Providers** page as Google AI Studio. Vertex AI keys and service accounts are not supported.
+
+## Calling Gemini models
+
+- **Endpoint:** `POST /v1/chat/completions`.
+- **Model names:** `google-ai-studio/` plus the Gemini model ID, for example `google-ai-studio/gemini-3.6-flash` or `google-ai-studio/gemini-2.5-pro`.
+- **SDK:** the OpenAI SDK with `base_url` set to `https://api.openpike.dev/v1`.
+
+## Quirks
+
+- OpenPike uses Google's **OpenAI compatibility layer** (`https://generativelanguage.googleapis.com/v1beta/openai/`), which Google describes as beta. Features it does not support do not work through OpenPike either.
+- Google notes that `reasoning_effort` cannot be combined with its own thinking settings, and that reasoning cannot be turned off for Gemini 2.5 Pro, Gemini 3 and Gemini 4 models.
+- **Dated prices.** Google has announced price changes for some models; the table shows them, and each request is priced at the rates on the day it is made.
+- Audio input rates and context cache storage are not applied to cost.
+
+## Prices
+
+<PriceTable provider="google-ai-studio" />

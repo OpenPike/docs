@@ -1,0 +1,37 @@
+---
+title: Alerts
+description: Get an email or a Slack message when a budget reaches a limit, loop detection pauses an agent or a run is stopped.
+sidebar:
+  order: 8
+---
+
+Alerts tell you, by email or in Slack, when a budget reaches its soft or hard limit, when loop detection pauses something, when a run reaches its cap, and when OpenPike could not check budgets.
+
+## Set up channels
+
+Open **Alerts** in the workspace and add channels. Only organization owners can add or remove them. A workspace can have up to 20.
+
+- **Email:** any address. Alerts come from `alerts@mail.openpike.dev`, and replies go to OpenPike support.
+- **Slack:** an [incoming webhook](https://api.slack.com/messaging/webhooks) URL, `https://hooks.slack.com/services/...`, created in your Slack workspace for the channel you want. OpenPike encrypts the URL like a provider key and shows only its end afterwards. Slack alerts are part of the Team and Business plans; on Free, a saved Slack channel stays inactive.
+
+Select **Send test** on a channel to check it.
+
+If a workspace has no email channel, its owners receive the email alerts instead, so a budget alert is never silently dropped.
+
+## What sends an alert
+
+| Event | When | Sent to |
+| --- | --- | --- |
+| Soft limit | A budget's spend reaches its soft limit; once per period | Alert channels |
+| Hard limit | A budget's spend reaches its hard limit; once per period. Requests are blocked from now on | Alert channels |
+| Forecast | A monthly budget with **Warn me before I hit this** on is on track to hit its hard limit with at least 2 days left; checked daily, once per budget per month | Alert channels |
+| Loop pause | Loop detection paused a key or tag | Alert channels |
+| Run stopped | A [run](/docs/features/run-budgets/) reached its spend, request or time cap; once per run | Alert channels |
+| Budgets unavailable | OpenPike could not reach the budget service and let requests through unchecked; at most once every 15 minutes | Channels and the workspace's owners |
+| 80% and 100% of the plan's requests | The organization used 80% or all of its monthly requests; once a month each | The workspace's owners, by email only |
+
+Alerts state the facts only: which scope, how much was spent against which limit, and when. They never include prompts, responses or keys.
+
+## Billing emails
+
+Failed payments and plan changes are emailed to the organization's owners separately from alert channels. See [Billing and plan limits](/docs/features/billing-and-plan-limits/).

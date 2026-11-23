@@ -1,0 +1,39 @@
+---
+title: LlamaIndex
+description: Use OpenPike from LlamaIndex with the OpenAILike LLM.
+sidebar:
+  order: 14
+---
+
+import Example from "../../../components/Example.astro";
+
+{/* Source, read 2026-11-16: https://developers.llamaindex.ai/python/framework-api-reference/llms/openai_like/ */}
+
+LlamaIndex's `OpenAILike` LLM is made for OpenAI-compatible endpoints with their own model names, so it works with OpenPike's chat completions endpoint.
+
+| Parameter | Value |
+| --- | --- |
+| `api_base` | `https://api.openpike.dev/v1` |
+| `api_key` | a virtual key |
+| `model` | an OpenPike name, such as `deepseek/deepseek-flash` |
+| `is_chat_model` | `True`, so it calls chat completions (the default is `False`) |
+| `context_window` | the model's context window; LlamaIndex assumes 3,900 tokens otherwise |
+| `default_headers` | `{"x-openpike-tags": ...}` |
+
+Use `OpenAILike` rather than LlamaIndex's `OpenAI` class: `OpenAILike` accepts any model name.
+
+## Install
+
+```bash
+pip install llama-index-llms-openai-like
+```
+
+## Example
+
+<Example name="llamaindex/chat" />
+
+## Notes
+
+- To cap one agent run with a [run budget](/docs/features/run-budgets/), create the LLM per task with `x-openpike-run` in `default_headers`.
+- Embeddings are not served by OpenPike, so keep your embedding model on its own provider.
+- Set `context_window` to the real window of the model you route to, so LlamaIndex fills prompts correctly.

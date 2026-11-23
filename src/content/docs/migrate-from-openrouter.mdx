@@ -1,0 +1,129 @@
+---
+title: Migrate from OpenRouter
+description: Move an OpenRouter integration to OpenPike, side by side, with a prompt that has a coding agent do it for you.
+sidebar:
+  order: 4
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+{/* OpenRouter conventions read on 2026-11-16 from https://openrouter.ai/docs/quickstart, https://openrouter.ai/docs/guides/routing/model-fallbacks.md and https://openrouter.ai/docs/guides/routing/provider-selection.md */}
+
+This page shows what changes when you move code from OpenRouter to OpenPike, and gives you a prompt that has a coding agent make the change.
+
+Both speak the OpenAI chat completions format, so most code changes in three places: the base URL, the key and the model names.
+
+## What changes
+
+| | OpenRouter | OpenPike |
+| --- | --- | --- |
+| Base URL, OpenAI format | `https://openrouter.ai/api/v1` | `https://api.openpike.dev/v1` |
+| Anthropic messages endpoint | `https://openrouter.ai/api/v1/messages` | `https://api.openpike.dev/v1/messages` |
+| Key | Your OpenRouter key | An OpenPike virtual key, `opk_live_...` |
+| Who bills the tokens | OpenRouter credits, or your own provider account with BYOK | Each provider, on your own account |
+| Model names | OpenRouter's catalog IDs, for example `anthropic/claude-sonnet-4.5` | `provider/` plus the provider's own model ID, for example `anthropic/claude-sonnet-4-5` |
+| Fallbacks | `models` array (chat) or `fallbacks` (messages) in the request body | An alias such as `openpike/smart`, set up once in the dashboard |
+| Automatic routing | `openrouter/auto` | An alias with the `cheapest_first` policy, for example `openpike/auto` |
+| Provider preferences | `provider` object in the request body | Not needed: the model name picks the provider |
+| Attribution headers | `HTTP-Referer`, `X-OpenRouter-Title` (optional) | Not used; use `x-openpike-tags` to attribute spend |
+
+## Model names
+
+OpenPike sends the part after the first slash to the provider unchanged, so it must be the ID the provider itself uses. OpenRouter's IDs often differ: Anthropic's own IDs use dashes (`claude-sonnet-4-5`) where OpenRouter uses dots (`claude-sonnet-4.5`). Use the IDs from each provider's own documentation, or list the models your keys can use:
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+curl https://api.openpike.dev/v1/models -H "Authorization: Bearer $OPENPIKE_API_KEY"
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+curl.exe https://api.openpike.dev/v1/models -H "Authorization: Bearer $env:OPENPIKE_API_KEY"
+```
+
+</TabItem>
+</Tabs>
+
+## Side by side
+
+Before, with OpenRouter:
+
+```python
+import os
+
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=os.environ["OPENROUTER_API_KEY"],
+)
+
+client.chat.completions.create(
+    model="deepseek/deepseek-chat",
+    messages=[{"role": "user", "content": "Hello"}],
+    extra_body={"models": ["deepseek/deepseek-chat", "openai/gpt-4o-mini"]},
+)
+```
+
+After, with OpenPike, the fallback list lives in an alias (`openpike/fast`, with `deepseek/deepseek-flash` then `openai/gpt-4o-mini` as targets):
+
+```python
+import os
+
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.openpike.dev/v1",
+    api_key=os.environ["OPENPIKE_API_KEY"],
+)
+
+client.chat.completions.create(
+    model="openpike/fast",
+    messages=[{"role": "user", "content": "Hello"}],
+    extra_headers={"x-openpike-tags": "agent=my-app"},
+)
+```
+
+<Aside type="caution" title="Remove OpenRouter-only fields">
+OpenPike passes unknown body fields to the provider untouched. Fields that only OpenRouter understands, such as `models`, `fallbacks`, `provider`, `transforms` and `route`, would reach the provider, which may reject them. Remove them when you switch.
+</Aside>
+
+## Keep OpenRouter for some models
+
+OpenRouter can also sit behind OpenPike as one more provider. Add your OpenRouter key on the Providers page and name models `openrouter/` plus OpenRouter's ID, for example `openrouter/openai/gpt-5`. Everything after the first slash goes to OpenRouter unchanged. Those requests get OpenPike's budgets, loop detection and spend reporting; OpenPike prices those models from OpenRouter's public model list, so their requests show cost.
+
+## Let a coding agent do it
+
+Paste this prompt into Claude Code, Codex CLI, Cursor or another coding agent, in the repository you want to migrate:
+
+```text
+Migrate this codebase from OpenRouter to OpenPike (https://openpike.dev/docs/).
+
+1. Find every place that calls OpenRouter: base URLs containing openrouter.ai, environment
+   variables like OPENROUTER_API_KEY, and SDK clients configured for OpenRouter.
+2. Change the OpenAI-format base URL to https://api.openpike.dev/v1 and the Anthropic-format
+   base URL to https://api.openpike.dev. Read the key from OPENPIKE_API_KEY instead, and update
+   .env.example files and docs that mention the old variable. Do not write real keys anywhere.
+3. Rewrite model names to OpenPike's form: provider slug, a slash, then the provider's own model
+   ID (for example anthropic/claude-sonnet-4-5, openai/gpt-4o-mini, deepseek/deepseek-flash).
+   OpenRouter IDs that use dots in version numbers usually use dashes at the provider. If you are
+   not sure of an ID, list the candidates for me instead of guessing.
+4. Remove OpenRouter-only request fields: models, fallbacks, provider, transforms, route, and the
+   HTTP-Referer and X-OpenRouter-Title headers. Where code relied on models or fallbacks for
+   fallbacks, replace the model with an alias name like openpike/<name> and list the aliases I
+   need to create in the OpenPike dashboard, with their targets in order.
+5. Add an x-openpike-tags header such as agent=<service name> to each client, so spend is
+   attributed per service.
+6. Run the tests, then summarize every file you changed and anything I must do by hand.
+```
+
+## After the switch
+
+- Set a [budget](/docs/features/budgets/) on the virtual key before you send real traffic.
+- Check the first requests in **Logs**: each shows the model that served it and its cost.
+- If a request fails with `invalid_model`, the model name is not in `provider/model` form or the provider is unknown; with `missing_provider_key`, add that provider's key on the Providers page. See [Errors](/docs/api/errors/).

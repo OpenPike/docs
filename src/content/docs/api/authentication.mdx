@@ -1,0 +1,49 @@
+---
+title: Authentication
+description: How to send an OpenPike virtual key, what happens when it is wrong, and the base URL for each SDK.
+sidebar:
+  order: 1
+---
+
+Every request to OpenPike's API carries a virtual key; this page shows the two accepted ways to send it and what OpenPike answers when it is missing or wrong.
+
+## Base URL
+
+```text
+https://api.openpike.dev
+```
+
+| Client | Base URL setting |
+| --- | --- |
+| OpenAI SDKs and OpenAI-compatible tools | `https://api.openpike.dev/v1` |
+| Anthropic SDKs | `https://api.openpike.dev` (the SDK adds `/v1/messages`) |
+| Plain HTTP | `https://api.openpike.dev/v1/chat/completions`, `/v1/messages`, `/v1/systemone`, `/v1/models` |
+
+## Sending the key
+
+Send an OpenPike virtual key (`opk_live_...`) in either header. Both work on every endpoint:
+
+```text
+Authorization: Bearer opk_live_...
+x-api-key: opk_live_...
+```
+
+OpenAI SDKs use the first, Anthropic SDKs the second, so both work unchanged. Never send your provider key: OpenPike uses the provider key stored in your workspace, and strips your `Authorization` and `x-api-key` headers before forwarding.
+
+`GET /health` needs no key.
+
+## Key errors
+
+| Status | Code | When |
+| --- | --- | --- |
+| `401` | `invalid_virtual_key` | No key, an unknown key, a revoked key, or a key disabled because the organization's plan allows fewer keys (the message says so) |
+| `429` | `too_many_auth_failures` | More than 20 requests with invalid keys from your IP address within the current minute. Lasts until the minute ends. Keys that already worked in the last minute keep working |
+
+On `/v1/messages` the `401` has Anthropic's shape with the type `authentication_error`.
+
+## Keeping keys safe
+
+- OpenPike stores only a SHA-256 hash of each virtual key and shows the full key once.
+- Give each agent, developer and service its own key, so you can revoke one without touching the others.
+- Keep keys in environment variables or a secrets manager, never in code or committed settings files.
+- If a key leaks, revoke it on the **Keys** page; the next request with it fails.

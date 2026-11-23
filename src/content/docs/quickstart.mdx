@@ -1,0 +1,92 @@
+---
+title: Quickstart
+description: Sign in, add a provider key, create a virtual key and send your first request through OpenPike.
+sidebar:
+  order: 2
+---
+
+import { Steps } from "@astrojs/starlight/components";
+import Example from "../../components/Example.astro";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+This page takes you from an empty account to a first request through OpenPike, in about five minutes.
+
+## 1. Sign in
+
+<Steps>
+
+1. Open [app.openpike.dev](https://app.openpike.dev) and select **Continue with GitHub**, or enter your work email and OpenPike emails you a sign-in link. There is no password.
+2. Approve OpenPike on GitHub, or follow the emailed link. The first time, OpenPike creates an organization for you with one workspace in it.
+3. Tell OpenPike your name (after GitHub sign-in it is filled in from your GitHub profile; check it and continue). You can also rename your organization and say what you are building; both are optional. Then the workspace opens.
+
+</Steps>
+
+Anyone can sign up with a work email or a GitHub account. GitHub sign-in uses your GitHub account's primary email, which must be verified on GitHub; if you already have an OpenPike account with that email, you get that account, now connected to GitHub. The sign-in page gives the same answer for every address, so if no link arrives within a few minutes, check your spam folder or write to [support@openpike.dev](mailto:support@openpike.dev). Someone already in an organization can also invite you from its Members page.
+
+## 2. Add a provider key
+
+<Steps>
+
+1. In the dashboard, open **Providers** and choose a provider, for example DeepSeek or Anthropic.
+2. Paste your key from that provider's console and save it. OpenPike encrypts it with your workspace's own key and never shows it again; the page keeps only its last four characters.
+3. Select **Test** to check the key with a real call to the provider.
+
+</Steps>
+
+Only organization owners can add, test or remove provider keys. See [Provider keys](/docs/features/provider-keys/).
+
+## 3. Create a virtual key
+
+<Steps>
+
+1. Open **Keys** and select **Create key**.
+2. Give it a name and, optionally, tags, for example `agent=quickstart`. Tags attribute spend and let you set budgets per agent.
+3. Copy the key. It starts with `opk_live_` and is shown once; OpenPike stores only a hash of it.
+
+</Steps>
+
+Store it in an environment variable for the examples below. In PowerShell, `$env:` variables last only for that window.
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+export OPENPIKE_API_KEY="opk_live_..."
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+$env:OPENPIKE_API_KEY = "opk_live_..."
+```
+
+</TabItem>
+</Tabs>
+
+## 4. Send a request
+
+OpenPike speaks the OpenAI chat completions format at `https://api.openpike.dev/v1`. Models are named `provider/model`: the provider, then that provider's own model ID.
+
+<Example name="quickstart/chat" />
+
+The `x-openpike-tags` header is optional. It adds tags to this request on top of the key's own, here so the request shows up under the agent `quickstart`.
+
+On Windows PowerShell, the curl example needs `curl.exe` (plain `curl` there is a different command) and `$env:OPENPIKE_API_KEY` in place of `$OPENPIKE_API_KEY`. The Python and TypeScript examples work unchanged.
+
+### Anthropic format
+
+Anthropic's SDKs work too. OpenPike serves the Anthropic messages format at `/v1/messages`; give the SDK `https://api.openpike.dev` as its base URL, without `/v1`.
+
+<Example name="quickstart/messages" />
+
+## 5. See it in the dashboard
+
+Open **Logs**: the request is there within a few seconds, with the model, tokens, cost and latency. **Activity** shows spend over time, and **Agents** groups it by the `agent` tag.
+
+## Next steps
+
+- [Set a budget](/docs/features/budgets/) on the workspace or on the key, so a loop cannot spend past it.
+- [Connect a coding agent](/docs/integrations/claude-code/) such as Claude Code, Codex CLI or Cursor.
+- [Create an alias](/docs/features/aliases-and-fallbacks/) such as `openpike/auto` for fallbacks and cheaper routing.
+- Read [Concepts](/docs/concepts/) for how organizations, workspaces and keys fit together.

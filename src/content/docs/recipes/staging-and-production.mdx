@@ -1,0 +1,39 @@
+---
+title: Staging and production workspaces
+description: Separate staging and production traffic into two workspaces with their own keys, budgets and alerts.
+sidebar:
+  order: 3
+---
+
+This recipe splits staging and production into two workspaces, so a test run can never use production's budget, and production's alerts are not drowned out by staging noise.
+
+## 1. Create the workspaces
+
+An organization owner selects **New workspace** at the top of the dashboard twice, naming them `staging` and `production`. Rename the first workspace instead of creating a third, if you like.
+
+Both workspaces share the organization's plan, members and monthly request limit; everything else is separate.
+
+## 2. Add provider keys to each
+
+Add provider keys on the **Providers** page of each workspace. Use separate keys from your providers if they let you, for example two Anthropic keys, so you can also tell staging and production apart in the providers' own consoles and revoke one without the other.
+
+## 3. Create virtual keys in each
+
+Create the virtual keys for your services in both workspaces. A virtual key belongs to one workspace, so a staging key cannot reach production's provider keys or budgets. Put them in your deployment secrets, one per environment:
+
+```text
+OPENPIKE_API_KEY=opk_live_...   # staging deployment: a key from the staging workspace
+OPENPIKE_API_KEY=opk_live_...   # production deployment: a key from the production workspace
+```
+
+The base URL is the same for both: `https://api.openpike.dev`.
+
+## 4. Budgets and alerts per environment
+
+- **Staging:** a low workspace budget with a hard limit, for example `$10` a day, so a broken test loop stops quickly.
+- **Production:** a monthly budget with a soft limit that alerts and a higher hard limit, plus loop limits per agent tag.
+- Route alerts differently: staging to a team channel, production to on-call.
+
+## 5. Compare them
+
+**Activity** shows one workspace at a time; switch to **All workspaces** to see both together, grouped by workspace.

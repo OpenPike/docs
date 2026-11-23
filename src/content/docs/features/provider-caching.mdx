@@ -1,0 +1,54 @@
+---
+title: Provider prompt caching
+description: How Anthropic, OpenAI and DeepSeek cache the repeated start of a prompt, how to read OpenPike's hit rate and savings numbers, and what to change in a coding agent to get more cache hits.
+sidebar:
+  order: 8
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A coding agent resends a large, mostly identical start of the prompt on every turn: the system prompt, the tool definitions and the earlier turns. Providers can cache that start on their side and charge a fraction of the normal input price for the cached part. For agent teams this is usually the biggest saving available.
+
+OpenPike does not cache anything itself. It reads the cached token counts the provider reports, prices them with the provider's cached and cache write rates, and shows the result.
+
+## How each provider caches
+
+| Provider | How you turn it on | Minimum prompt | Lifetime | Price |
+| --- | --- | --- | --- | --- |
+| Anthropic | Mark what to cache with `cache_control` (a top-level field, or on individual content blocks, up to 4 breakpoints) | 512 to 4,096 tokens, by model | 5 minutes, refreshed on each read; `"ttl": "1h"` for 1 hour | Reads 0.1x the input price (0.05x on some models); 5-minute writes 1.25x; 1-hour writes 2x |
+| OpenAI | Automatic | 1,024 tokens on current models | Minutes to an hour by default; up to 24 hours or 12 hours when you ask for it, by model | Reads at a discount that varies by model; older models charge nothing for writes, GPT-5.6 and later charge 1.25x or more |
+| DeepSeek | Automatic | A hit needs a prefix that was already stored | Cleared once unused, usually within hours to days | Cache hits are billed at a much lower rate |
+
+Check each provider's own page for the exact figures for your model: [Anthropic](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching), [DeepSeek](https://api-docs.deepseek.com/guides/kv_cache).
+
+<Aside type="note">
+Anthropic only caches a request that marks a breakpoint with `cache_control`. Many clients do not set one, so their requests are never cached on Anthropic. OpenPike passes request bodies through untouched, so it does not add breakpoints for you. Check that your coding agent sets them.
+</Aside>
+
+## Read the numbers
+
+On **Activity**, the **Provider caching** card covers the selected time range and breaks the numbers down by agent, key and model. On **Agents**, the **Cache hit rate** column shows this month's rate next to spend.
+
+| Number | Meaning |
+| --- | --- |
+| Hit rate | Cached input tokens divided by input tokens. Input tokens include the cached part |
+| Net savings | Cached tokens times (input price minus cached price), minus the extra a provider charges for cache writes over the plain input price. Each day uses that day's prices |
+| Cache write spend | What the cache writes cost: 5-minute writes at the cache write rate, 1-hour writes at their own rate. Providers that do not charge for writes show $0 |
+| unknown | The model has no cached price in OpenPike's price table, so the saving cannot be worked out. It is never shown as $0 |
+
+Net savings is an estimate from grouped totals. For a model whose price rises with prompt length, the tier of the group's average prompt is used. Failed requests and requests without token counts are left out. Anthropic's 1-hour cache writes are priced at the 1-hour rate, from the split the response reports; requests logged before OpenPike stored that split are priced at the 5-minute rate.
+
+## Suggestions
+
+Activity lists up to three agents or keys that would clearly benefit: an average of more than 10,000 input tokens per request, a hit rate under 20% over the last 7 days, and at least 20 requests. The monthly saving shown is an estimate of what a 60% hit rate would save at your current volume. Dismiss a suggestion and it stays hidden for the workspace.
+
+## Get better hit rates
+
+- **Keep the start of the prompt stable.** Put instructions, tool definitions and reference material first. Put timestamps, the current directory and other changing text last.
+- **Append, do not rewrite.** Add new messages to the end rather than editing earlier turns. Compaction and summarization restart the cache.
+- **Keep the tool list the same** from turn to turn. Changing or reordering tools changes the start of every later prompt.
+- **Mind the lifetime.** A pause longer than the cache lifetime, 5 minutes on Anthropic by default, means the next request writes the cache again. Use the 1-hour option for agents that wait on people.
+- **On Anthropic, set `cache_control`** on the system prompt, the last tool and the latest messages.
+- **On OpenAI, send a stable `prompt_cache_key`** for requests that share a start, where the model supports it.
+
+See also [Usage and cost](/docs/features/usage-and-cost/).

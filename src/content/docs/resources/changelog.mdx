@@ -1,0 +1,72 @@
+---
+title: Changelog
+description: What changed in each OpenPike release, in plain language.
+sidebar:
+  order: 3
+---
+
+This page lists what each OpenPike release added or changed, newest first.
+
+## Unreleased: provider caching insights
+
+- **Provider caching** on Activity: cache hit rate, net savings and cache write spend by agent, key and model, and a **Cache hit rate** column on Agents. See [Provider prompt caching](/docs/features/provider-caching/).
+- Up to three dismissible suggestions for agents and keys with large prompts and a low hit rate.
+
+## Unreleased: spend forecast
+
+- **Spend forecast**: Budgets shows the projected end-of-period spend and the date each limit will be crossed, and Activity shows the projected month total. See [Budgets](/docs/features/budgets/).
+- An opt-in **forecast alert** ("Warn me before I hit this") on monthly budgets, sent at most once a month when the hard limit is on track to be hit with at least 2 days left.
+
+## Unreleased: run budgets
+
+- **Run budgets**: name an agent run with the `x-openpike-run` header, and cap each run's spend, requests and wall time on a budget. A run that reaches a cap gets `429 run_limit_exceeded` from then on; other runs keep working. `x-openpike-run-max-usd` lowers the spend cap per request. See [Run budgets](/docs/features/run-budgets/).
+- A **Runs** page lists the top runs by spend with their status, Logs shows and filters by run, and a stopped run sends one alert.
+
+## Unreleased: prices for every provider
+
+- **Prices for every enabled chat provider**: xAI, Mistral, Together, Fireworks, DeepInfra, Cerebras, Nebius, SiliconFlow, OpenRouter and Perplexity's `sonar`, each from the provider's own pricing page or price data.
+- **Estimated cost**: a request to a model with no price of its own is costed with an estimate (the model the response names, or OpenRouter's price for the same model), counts toward budgets and loop limits, and is marked **Estimated** in Logs.
+- Logs can filter by **Cost** (unknown or estimated), and Activity and Budgets warn when requests in the period have an unknown or estimated cost.
+
+## v0.5.0, 2026-11-17: Responses API
+
+- **`POST /v1/responses`**, OpenAI's Responses API, passed through to OpenAI, xAI, Groq and OpenRouter with your own key, with the same budgets, loop limits, tags, prompt logging, Logs and costs as the other endpoints. [Codex CLI](/docs/integrations/codex-cli/) and `client.responses.create` now work through OpenPike with those providers' models.
+- Aliases can be made for the Responses endpoint. A request that continues stored state (`previous_response_id` or `conversation`) only goes to the alias's first target.
+- `GET /v1/models` entries list the formats (`chat`, `responses`, `messages`, `systemone`) their provider serves through OpenPike.
+- **Usage missing:** on every endpoint, a successful response without token counts is marked "Usage missing" in Logs, with its cost unknown rather than zero.
+- Not yet: `background: true` (rejected with `400 unsupported_parameter`), Responses on Claude or DeepSeek models (no translation between formats), and costs for hosted tools.
+
+## v0.4.0, 2026-11-16: organizations and billing
+
+- **Organizations above workspaces.** An organization holds the plan, members, invitations and the audit log; it can have several workspaces, each with its own keys, budgets, aliases and logs. Every existing workspace became its own organization.
+- **Plans and limits.** Free, Team and Business, with limits on monthly requests and active virtual keys counted across the organization. At the request limit, requests are blocked or throttled to 10 a minute, as the organization chooses; owners get emails at 80% and 100%.
+- **Billing with Stripe.** Upgrade in the dashboard, change or cancel in Stripe's customer portal. A failed payment gets emails on days 0, 3 and 7 and a banner; after 14 days the organization moves to Free limits, with nothing deleted.
+- **Audit log** on Business: every change in the organization, with who made it.
+- **Prompt logging** on Business: opt-in per workspace, encrypted, with per-request opt-out and exclusions, and an audit entry for every view.
+- **Prices for OpenAI and Google AI Studio models**, including long-context prices and announced price changes by date.
+- Log retention by plan: 3, 30 or 90 days.
+
+## v0.3.0, 2026-11-15: dashboard
+
+- **Dashboard** at app.openpike.dev: Activity, Logs with live tail, Agents, Budgets, Keys, Providers, Routing, Alerts and Settings.
+- **Sign-in by email link**, no passwords, with invitations and owner and member roles.
+- **Alerts by email and Slack** for budget limits and loop pauses.
+- **Marketing site** at openpike.dev with pricing and a first docs page.
+- More prices: Anthropic's 1-hour cache writes and long-context prices; DeepSeek at its peak rates.
+
+## v0.2.0, 2026-11-15: controls
+
+- **Budgets** per workspace, virtual key or tag, by hour, day or month, with soft limits that alert and hard limits that block.
+- **Loop detection** that pauses a key or tag when its requests or spend per minute spike, and manual pause and resume.
+- **Aliases** (`openpike/<name>`) with fallbacks before the first byte and a cheapest-first policy.
+- **Costs** for every request, from Anthropic's official prices.
+- Limits on repeated invalid keys from one address; revoked keys stop working everywhere at once.
+
+## v0.1.0, 2026-11-15: the gateway
+
+- The gateway at api.openpike.dev with three formats: OpenAI chat completions, Anthropic messages and TypeSafe System One, streaming passed through without buffering.
+- Bring your own provider keys, encrypted per workspace; OpenPike virtual keys stored as hashes.
+- Models named `provider/model`, tags with `x-openpike-tags`, `GET /v1/models`.
+- Usage recorded for every request from the providers' own token counts.
+
+This release was not tagged in the repository.

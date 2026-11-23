@@ -1,0 +1,82 @@
+---
+title: Run budgets
+description: Cap the spend, requests and time of each agent run with the x-openpike-run header, so no single task can run away.
+sidebar:
+  order: 7
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A run budget caps one agent run: "no single task may spend more than $5, make more than 200 calls or run longer than two hours." You name the run with a header, and OpenPike stops that run, and only that run, when it reaches a cap.
+
+Loop detection catches fast loops within a minute. A slow, steady loop, say one request every 20 seconds for six hours, stays under any per-minute limit and quietly adds up. A run budget catches both, because it counts the whole run.
+
+## Name the run
+
+Send the same `x-openpike-run` header on every request of one task, session or job:
+
+```text
+x-openpike-run: task-8841
+x-openpike-run-label: Fix the flaky login test
+```
+
+| Header | Meaning |
+| --- | --- |
+| `x-openpike-run` | The run ID, 1 to 128 printable ASCII characters. You choose it: a task ID, a session ID, a CI job ID. Every request in the workspace with the same ID is one run |
+| `x-openpike-run-label` | Optional. A human name for the run, at most 200 characters, shown in alerts and on the **Runs** page |
+| `x-openpike-run-max-usd` | Optional. A spend cap in dollars for this run, for example `2.50`. It can only lower the budget's cap, never raise it. With no budget run limit, it is the run's only cap |
+
+OpenPike removes these headers before forwarding the request to the provider, like every `x-openpike-` header. Each request's run ID is stored with its usage row and shown on **Logs**.
+
+## Set run limits
+
+Run limits live on a budget, so they follow its scope: the whole workspace, one virtual key, or a tag such as `agent=coder`. Open **Budgets**, create or edit a budget, and fill in **Run limits**:
+
+| Limit | Meaning |
+| --- | --- |
+| Max spend per run | Refuse the run once its spend reaches this amount |
+| Max requests per run | Refuse the run once it has made this many requests |
+| Max run time | Refuse the run once this much wall time has passed since its first request |
+| Run ends after idle | With no requests for this long, the run ends and its ID starts a new run. Default 30 minutes |
+
+When several budgets match a request (the workspace budget, the key's budget and a tag budget, say), the lowest limit of each kind applies. A request that names a run but has no run limit from any budget and no `x-openpike-run-max-usd` is not counted as a run.
+
+Run budgets are available on every plan.
+
+## What a stopped run gets
+
+From the request after the cap, every request with that run ID gets:
+
+```text
+HTTP/1.1 429 Too Many Requests
+
+{"error": {"type": "openpike_error", "code": "run_limit_exceeded", "message": "Run \"task-8841\" reached its $5 spend limit, so its later requests are refused. Start a new run with a new x-openpike-run ID, or raise the run limit at https://app.openpike.dev/w/ws_.../budgets.", "request_id": "req_..."}}
+```
+
+On `/v1/messages` the error has the Anthropic shape with type `rate_limit_error`. There is no `retry-after` header: the run does not recover by waiting a few seconds. Other runs on the same key, and requests without a run, keep working.
+
+- **Spend** is known only after a response, so the request that crosses the spend cap completes and the next one is refused, as with [hard budgets](/docs/features/budgets/).
+- **Requests and time**: with a cap of 200 requests, the 201st is refused; with a cap of two hours, the first request after two hours is refused.
+- **Retries keep it stopped.** Refused requests count as activity, so a client that keeps retrying stays refused. The run ID is free again only after the idle time passes with no requests at all.
+
+<Aside type="tip">
+Lower your SDK's retry count for agents, or handle `run_limit_exceeded` yourself: retrying a stopped run only adds refused requests to its log.
+</Aside>
+
+## Alerts
+
+When a run is stopped, OpenPike sends one `run_limit` alert per run to the workspace's [alert channels](/docs/features/alerts/): the run ID and label, which cap it reached, and its spend, requests and duration.
+
+## The Runs page
+
+**Runs** lists the top runs by spend for the last 24 hours, 7 days or 30 days: label, agent, spend, requests (and how many were refused), errors, duration and status. **Active** means OpenPike is tracking the run; **Stopped** names the cap it reached; **Ended** means it went idle, or had no run limit. Select a run to open its requests in **Logs**.
+
+## Set the run ID from your tools
+
+Pick an ID that changes per task. Tools that take fixed headers from a config file need the ID set when the task starts, usually from an environment variable.
+
+- **Claude Code**: set `ANTHROPIC_CUSTOM_HEADERS` in the shell when you start the task. See [Claude Code](/docs/integrations/claude-code/#a-run-id-per-task).
+- **Codex CLI**: `env_http_headers` reads a header value from an environment variable. See [Codex CLI](/docs/integrations/codex-cli/#a-run-id-per-task).
+- **OpenCode**: a run header in `headers` applies to every session started with that config, so set it per task with a separate config file.
+- **SDKs**: send the header per request or on a client you create per task. See the [OpenAI SDK](/docs/integrations/openai-sdk/#a-run-id-per-task), [Anthropic SDK](/docs/integrations/anthropic-sdk/#a-run-id-per-task), [Vercel AI SDK](/docs/integrations/vercel-ai-sdk/), [LangChain](/docs/integrations/langchain/) and [LlamaIndex](/docs/integrations/llamaindex/) pages.
+- **Cursor and Cline** cannot add headers, so they cannot name runs. Use loop detection and budgets on their keys instead.

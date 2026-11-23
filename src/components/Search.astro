@@ -1,0 +1,7 @@
+---
+// Renders Starlight's own search. Overriding it keeps the search box when the build skips Starlight's
+// Pagefind step (DOCS_PAGEFIND=skip) and the index is built separately, as build:docker-search does.
+import Default from "@astrojs/starlight/components/Search.astro";
+---
+
+<Default />

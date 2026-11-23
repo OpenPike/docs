@@ -1,0 +1,40 @@
+---
+title: Pre-triage with Jev
+description: Ask TypeSafe's Jev a typed question about a ticket before deciding whether to spend tokens on a large model.
+sidebar:
+  order: 6
+---
+
+import Example from "../../../components/Example.astro";
+
+This recipe uses Jev, TypeSafe's decision model, to answer a cheap yes, no or unknown question about each incoming item, so only the items that need it go to a large model.
+
+## How it works
+
+Jev is not a chat model. You send a `state` (the facts, as JSON) and typed `questions`, and get `answers`. Question types:
+
+- `noul`: yes, no or unknown, for example "Is this ticket urgent?"
+- `choice`: one option out of a list
+- `score`: a number
+
+You call it on OpenPike's `/v1/systemone` endpoint with the same virtual key as your other requests. Its requests show in Logs and count toward the plan, and request-per-minute loop limits apply to them; spend budgets do not, because Jev is not priced in OpenPike yet.
+
+## 1. Add a key
+
+Add a TypeSafe key on the **Providers** page, and use `typesafe/jev-1.13.0`. If TypeSafe's API is not open to you yet, add an OpenRouter key instead and use `openrouter/typesafe/jev-1.13`; OpenRouter serves the same endpoint. See [TypeSafe (Jev)](/docs/providers/typesafe/).
+
+## 2. Ask the question
+
+<Example name="recipes/triage" />
+
+## 3. Act on the answer
+
+- **Yes:** send the ticket to your large model, page someone, or both.
+- **No:** put it in the normal queue, no large-model call.
+- **Unknown:** treat it as yes, or ask a follow-up question with more of the ticket in `state`.
+
+## 4. Watch it
+
+Tag the requests, as in the example, with `agent=triage`. **Agents** then shows how many decisions you made; Jev is not priced in OpenPike yet, so its requests show no cost.
+
+OpenPike has not tested TypeSafe's API live yet; check the first responses in **Logs**.

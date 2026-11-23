@@ -1,0 +1,43 @@
+---
+title: A budget per developer
+description: Give each developer a virtual key with its own monthly budget, and a team budget on top.
+sidebar:
+  order: 2
+---
+
+This recipe gives every developer on a team their own monthly spending limit for coding agents, with a team-wide cap on top, so one person's long session cannot use the whole team's budget.
+
+## 1. One key per developer
+
+On **Keys**, create a virtual key for each developer, named after them, with two tags:
+
+```text
+dev=alice, team=platform
+```
+
+Each developer puts their key in their tool's settings, for example `ANTHROPIC_AUTH_TOKEN` for [Claude Code](/docs/integrations/claude-code/). Keys are shown once, so send each key to its owner through your password manager, not chat.
+
+## 2. A budget on each key
+
+On **Budgets**, add one budget per developer key:
+
+- **Scope:** Virtual key, the developer's key
+- **Period:** Month
+- **Soft limit:** for example `$150`
+- **Hard limit:** for example `$200`
+
+At the soft limit you get an alert; at the hard limit that developer's requests are blocked until the 1st of next month, 00:00 UTC, or until you raise the limit.
+
+## 3. A team budget on the tag
+
+Add one more budget with scope **Tag** `team=platform`, period **Month**, and a hard limit for the whole team, for example `$1,500`. Every request from a key tagged `team=platform` counts toward it, so the team stops at its total even if each developer is under their own limit.
+
+## 4. Watch it
+
+- **Keys** shows each key's spend this month.
+- **Activity**, grouped by agent or filtered by tag in **Logs**, shows where the money goes.
+- **Alerts** tells you when a developer reaches their soft limit.
+
+## When someone leaves
+
+Revoke their key on the **Keys** page. Their tools stop working on the next request, and nobody else's key changes.

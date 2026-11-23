@@ -1,0 +1,68 @@
+---
+title: Billing and plan limits
+description: Plans, what each one allows, what happens at the monthly request limit, and how payments, upgrades and failed payments work.
+sidebar:
+  order: 12
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import PlanTable from "../../../components/PlanTable.astro";
+
+OpenPike charges a flat price per organization and never a share of your token spend; this page lists the plans, what happens when you reach a limit, and how upgrades, downgrades and failed payments work.
+
+## Plans
+
+<PlanTable />
+
+All limits count across every workspace of the organization. Your provider bills you for tokens directly; OpenPike never adds to that.
+
+## Request limit
+
+Every request that passes OpenPike's limit checks counts toward the organization's monthly requests, whatever its result upstream. Requests refused for a bad key, a budget, a pause, a loop limit or the plan limit do not count. A request that passes the limits but then fails on a bad model name or a missing provider key does count. See [Rate and plan limits](/docs/api/limits/). The count resets at the start of each calendar month, 00:00 UTC on the 1st.
+
+At the limit, the organization's **limit mode** decides what happens. Owners set it under **Organization**:
+
+- **Block** (the default): requests get `429 plan_limit_reached` until the month resets. `retry-after` is the seconds until then.
+- **Throttle**: requests keep working, at most 10 a minute for the whole organization, and the rest get `429 plan_limit_throttled` with `retry-after: 60`.
+
+The owners get an email at 80% and at 100% of the limit, once a month each. The dashboard shows a banner from 80%, and **Billing** shows the count.
+
+## Virtual key limit
+
+Free and Team limit the number of active virtual keys across the organization. Creating one more fails with `403 plan_upgrade_required`; revoke a key or upgrade.
+
+When an organization moves to a plan with fewer keys, OpenPike disables the newest keys over the new limit. They are not deleted: requests with them get `401 invalid_virtual_key` with a message saying the plan allows fewer keys, and they work again after an upgrade.
+
+## Features by plan
+
+Loop detection and Slack alerts need Team or Business; the audit log and prompt logging need Business. On a lower plan, settings you made earlier stay saved but inactive, and trying to add new ones fails with `403 plan_upgrade_required`.
+
+## Pay, upgrade, cancel
+
+Payments run through Stripe and are made up front, monthly or yearly.
+
+- **Upgrade:** an owner opens **Billing** and chooses a plan and period. Stripe Checkout asks for a card. The new plan applies as soon as the payment goes through.
+- **Change or cancel:** **Manage billing** opens Stripe's customer portal. Moving to a higher plan applies at once, with a prorated charge for the rest of the period. Moving to a lower plan or a shorter period, and cancelling, apply at the end of the period you paid for. Billing shows the date.
+- **Invoices and card:** also in **Manage billing**.
+
+There are no overage charges: at the request limit, requests are blocked or throttled, never billed extra.
+
+## Plans provided by OpenPike
+
+Some organizations get their plan from OpenPike without billing: design partners, partners, sponsored open source and nonprofit teams. **Billing** then shows the plan as "Provided by OpenPike" with the account type (for example "Design partner") and the end date if there is one, and offers no checkout or upgrade. The plan's limits and features work exactly as on the paid plan.
+
+When there is an end date, the owners get an email 14 days and 3 days before it. On that date the organization moves to the Free plan, as on any downgrade, and the owners get an email. They can choose a paid plan in **Billing** at any time.
+
+## Failed payments
+
+If a renewal payment fails, Stripe retries the card, and OpenPike:
+
+1. emails the owners at once, and again after 3 and 7 days;
+2. shows a banner in the dashboard to everyone in the organization;
+3. after 14 days unpaid, moves the organization to the Free plan's limits.
+
+Nothing is deleted. Keys over the Free limit are disabled newest first, and settings that Free does not include stay saved but inactive. When the payment goes through, the paid plan, the keys and the settings come back at once.
+
+<Aside type="note">
+Members can view the plan and its usage on **Billing**; only owners can change the plan, the card or the limit mode.
+</Aside>

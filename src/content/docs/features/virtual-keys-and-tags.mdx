@@ -1,0 +1,45 @@
+---
+title: Virtual keys and tags
+description: Give every agent, developer and app its own OpenPike key, and attribute spend with tags.
+sidebar:
+  order: 2
+---
+
+Virtual keys are the keys your code sends to OpenPike, and tags label each request; together they tell you who spent what and let you limit or stop one caller without touching the others.
+
+## Virtual keys
+
+A virtual key looks like `opk_live_` followed by random characters. Send it the way you would send a provider key: `Authorization: Bearer opk_live_...` or `x-api-key: opk_live_...`. Both work on every endpoint, so OpenAI and Anthropic SDKs need no changes.
+
+- **Create** one on the **Keys** page with a name and, optionally, tags. The full key is shown once; OpenPike stores only a SHA-256 hash of it.
+- **One per caller.** Give each agent, developer, CI job or app its own key. The Keys page then shows each key's spend this month and when it was last used.
+- **Revoke** a key on the Keys page. The next request with it gets `401 invalid_virtual_key`. Revoking cannot be undone; create a new key instead.
+- **Plan limits.** Each plan allows a number of active virtual keys across the organization. Creating one more fails with `403 plan_upgrade_required`. When an organization moves to a plan with fewer keys, the newest keys over the limit are disabled, not deleted, and come back when it upgrades. See [Billing and plan limits](/docs/features/billing-and-plan-limits/).
+
+Members and owners can both create and revoke virtual keys.
+
+## Tags
+
+A tag is a `key=value` pair, such as `agent=pr-reviewer`, `team=payments` or `env=prod`. Tags come from two places:
+
+1. **The virtual key.** Tags set when the key was created apply to every request made with it.
+2. **The request.** The `x-openpike-tags` header adds tags to one request:
+
+```text
+x-openpike-tags: agent=reviewer,project=checkout,env=prod
+```
+
+The header's tags are merged over the key's: a header tag with the same name as a key tag replaces it for that request. The header is never forwarded to the provider.
+
+Limits: at most 10 pairs, keys and values at most 64 characters each, keys not empty. Whitespace around keys and values is trimmed. A header that breaks the limits gets `400 invalid_tags`.
+
+### What tags are for
+
+- **Reporting.** Activity groups spend by tag, and Logs filters by tag.
+- **Budgets and loop limits per tag.** A budget on `agent=reviewer` counts every request that carries that tag, whichever key sent it. See [Budgets](/docs/features/budgets/).
+- **The `agent` tag.** The **Agents** page groups spend by `agent` and pauses one agent with a click.
+- **Prompt logging exclusions.** Requests with an excluded tag are never stored. See [Prompt logging](/docs/features/prompt-logging/).
+
+### Setting tags from tools
+
+When a tool lets you add HTTP headers, set `x-openpike-tags` there. When it does not, put the tags on the virtual key instead: create one key per tool, for example a key tagged `agent=claude-code` for Claude Code. The [integration guides](/docs/integrations/claude-code/) say which applies to each tool.

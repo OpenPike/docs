@@ -1,0 +1,32 @@
+---
+title: Support
+description: How to get help with OpenPike and what to include so we can help quickly.
+sidebar:
+  order: 4
+---
+
+This page says how to reach OpenPike and what to send so a problem can be solved in one reply.
+
+## Contact
+
+| For | Email |
+| --- | --- |
+| Questions, problems, access during early access | [support@openpike.dev](mailto:support@openpike.dev) |
+| Billing and invoices | [billing@openpike.dev](mailto:billing@openpike.dev) |
+| Security issues | [security@openpike.dev](mailto:security@openpike.dev) |
+
+Replies to OpenPike's alert and billing emails also reach support.
+
+## What to include
+
+- The **request ID** (`x-openpike-request-id`, also in **Logs**) of a request that went wrong.
+- The **error code** and message you received.
+- The **tool or SDK** and its version, and the model name you used.
+- Never send provider keys or full virtual keys. A key's first characters, as shown on the Keys page, are enough.
+
+## Check first
+
+- **Logs** shows every request with its status, error code, model and attempts.
+- [Errors](/docs/api/errors/) explains every error code.
+- The [FAQ](/docs/resources/faq/) answers the common questions.
+- `GET https://api.openpike.dev/health` returns `{"ok": true}` when the gateway is up.

@@ -1,0 +1,81 @@
+---
+title: OpenCode
+description: Add OpenPike to OpenCode as a custom OpenAI-compatible provider.
+sidebar:
+  order: 4
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+{/*
+  Source, read 2026-11-16: https://opencode.ai/docs/providers/
+*/}
+
+OpenCode accepts custom OpenAI-compatible providers in its config file, so you can add OpenPike as one and call any chat completions model through it.
+
+| | |
+| --- | --- |
+| OpenPike endpoint | `POST /v1/chat/completions` |
+| Base URL | `https://api.openpike.dev/v1` |
+| Key | A virtual key, from an environment variable or `/connect` |
+| Models | `provider/model` names, listed in the config |
+| Tags | `headers` in the provider config |
+
+## 1. Create a key for OpenCode
+
+On the **Keys** page, create a virtual key with the tag `agent=opencode`, and set it as an environment variable:
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+export OPENPIKE_API_KEY="opk_live_..."
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+$env:OPENPIKE_API_KEY = "opk_live_..."
+```
+
+</TabItem>
+</Tabs>
+
+## 2. Configure OpenCode
+
+Add a provider in `opencode.jsonc` (in your project, or in OpenCode's global config). The provider ID, here `openpike`, is what you use in model references:
+
+```jsonc title="opencode.jsonc"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "openpike": {
+      "name": "OpenPike",
+      "env": ["OPENPIKE_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://api.openpike.dev/v1"
+      },
+      "headers": {
+        "x-openpike-tags": "agent=opencode"
+      },
+      "models": {
+        "deepseek-flash": { "name": "DeepSeek Flash", "modelID": "deepseek/deepseek-flash" },
+        "gpt-5.4-mini": { "name": "GPT-5.4 mini", "modelID": "openai/gpt-5.4-mini" }
+      }
+    }
+  },
+  "model": "openpike/deepseek-flash"
+}
+```
+
+- `env` names the variable OpenCode reads the key from. You can also run `/connect` and enter it there.
+- `modelID` is the name OpenCode sends, which must be OpenPike's `provider/model` name. The key above it is OpenCode's own short name.
+- `headers` adds `x-openpike-tags` to every request.
+
+## 3. Check it works
+
+Start OpenCode, pick a model with `/models` (it is listed as `openpike/deepseek-flash`), and send a prompt. The request shows in OpenPike's **Logs** under the agent `opencode`.
+
+Claude models are not available through this provider, because OpenPike serves them in the Anthropic format only.

@@ -1,0 +1,64 @@
+---
+title: Anthropic SDK
+description: Use Anthropic's Python and TypeScript SDKs with OpenPike by changing the base URL and key.
+sidebar:
+  order: 11
+---
+
+import Example from "../../../components/Example.astro";
+
+{/* Source, read 2026-11-16: https://platform.claude.com/docs/en/get-started */}
+
+Anthropic's official SDKs work with OpenPike for Claude models, and for DeepSeek's Anthropic-compatible endpoint: set the base URL and the key.
+
+| | Python (`anthropic`) | TypeScript (`@anthropic-ai/sdk`) |
+| --- | --- | --- |
+| Base URL | `base_url="https://api.openpike.dev"` | `baseURL: "https://api.openpike.dev"` |
+| Key | `api_key=` a virtual key | `apiKey:` a virtual key |
+| Tags on every request | `default_headers={"x-openpike-tags": ...}` | `defaultHeaders: { "x-openpike-tags": ... }` |
+
+The base URL has no `/v1`: the SDK adds `/v1/messages` itself. The SDK sends the key in `x-api-key`, which OpenPike accepts.
+
+## Install
+
+```bash
+pip install anthropic                # Python
+npm install @anthropic-ai/sdk        # TypeScript
+```
+
+## Streaming
+
+<Example name="anthropic-sdk/stream" />
+
+## A run ID per task
+
+A [run budget](/docs/features/run-budgets/) caps one agent run's spend, requests and time. Put the run in the client's default headers, one client per task:
+
+```python
+from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="https://api.openpike.dev",
+    api_key=virtual_key,
+    default_headers={"x-openpike-run": task.id, "x-openpike-run-label": task.title},
+    max_retries=0,  # a stopped run answers 429 run_limit_exceeded; retrying does not help
+)
+```
+
+```ts
+const client = new Anthropic({
+  baseURL: "https://api.openpike.dev",
+  apiKey: virtualKey,
+  defaultHeaders: { "x-openpike-run": task.id, "x-openpike-run-label": task.title },
+  maxRetries: 0,
+});
+```
+
+For one request, pass `extra_headers={...}` in Python or `{ headers: {...} }` as the second argument in TypeScript.
+
+## What works and what does not
+
+- **Works:** `messages.create` and `messages.stream` with `anthropic/...` models, including tools, prompt caching, extended thinking and beta features, and with `deepseek/...` models for the features DeepSeek's Anthropic-compatible endpoint supports. `anthropic-version` and `anthropic-beta` headers pass through to the provider.
+- **Does not work:** token counting (`messages.count_tokens`), the Message Batches API, the Files API and other endpoints besides `/v1/messages`.
+- **Errors** come back in Anthropic's shape. OpenPike's own `429` blocks use the error type `rate_limit_error`; a budget block is told apart from Anthropic's rate limit by its message and by the missing `x-openpike-provider` header. See [Errors](/docs/api/errors/).
+- **Retries:** the SDK retries `429` responses by default. A budget or plan block will not clear in seconds, so lower `max_retries` for agents that should stop at once.

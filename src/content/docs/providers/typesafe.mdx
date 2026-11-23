@@ -1,0 +1,35 @@
+---
+title: TypeSafe (Jev)
+description: Call TypeSafe's Jev decision models through OpenPike's System One endpoint.
+sidebar:
+  order: 5
+---
+
+import PriceTable from "../../../components/PriceTable.astro";
+
+OpenPike sends `typesafe/...` models to TypeSafe's System One API, which serves Jev, a decision model that answers typed questions about a state.
+
+## Jev is not a chat model
+
+You send a `state` (the facts) and a list of `questions`, each with a type, and get back `answers`. Question types are `choice` (pick one option), `score` (a number) and `noul` (yes, no or unknown). It suits triage and routing decisions before you spend tokens on a large model. See [Pre-triage with Jev](/docs/recipes/pre-triage-with-jev/).
+
+## Your key
+
+TypeSafe's own API may be waitlisted. Add a TypeSafe key on the **Providers** page if you have one. Without one, you can call Jev through OpenRouter, which also serves System One: add your OpenRouter key and use `openrouter/typesafe/jev-1.13`.
+
+## Calling Jev
+
+- **Endpoint:** `POST /v1/systemone`.
+- **Body:** `{ "model": "typesafe/jev-1.13.0", "state": { ... }, "questions": [ ... ] }`.
+- **Response:** `{ "model", "answers", "usage" }`. Responses are not streamed.
+
+OpenPike forwards the body to `https://api.typesafe.ai/v1/systemone` unchanged apart from the model name. See [POST /v1/systemone](/docs/api/reference/operations/systemone/).
+
+## Quirks
+
+- OpenPike has not tested TypeSafe's API live yet; the provider list shows it as Available.
+- Jev is not priced yet, so its requests show no cost.
+
+## Prices
+
+<PriceTable provider="typesafe" />

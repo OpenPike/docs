@@ -1,0 +1,73 @@
+---
+title: Model names
+description: How to name a model in an OpenPike request, which endpoint each provider uses, and how to list your models.
+sidebar:
+  order: 3
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Every request names its model as `provider/model`; this page explains the rule, the endpoint each provider needs, and how to find valid names.
+
+## The rule
+
+The part before the first slash is the provider's slug. Everything after it is the provider's own model ID, sent upstream unchanged:
+
+```text
+deepseek/deepseek-flash
+anthropic/claude-sonnet-5-5
+openai/gpt-5.4-mini
+google-ai-studio/gemini-3.6-flash
+typesafe/jev-1.13.0
+openrouter/openai/gpt-5
+```
+
+The last example goes to OpenRouter as `openai/gpt-5`. Model IDs are the provider's, not OpenPike's, so they follow each provider's naming: Anthropic uses dashes in version numbers (`claude-sonnet-4-5`), OpenAI uses dots (`gpt-5.4`).
+
+Names that start with `openpike/` are not providers: they are [aliases](/docs/features/aliases-and-fallbacks/) your workspace defines.
+
+## Each endpoint speaks one format
+
+OpenPike passes requests through without translating between formats, so a model must be called on the endpoint its provider speaks:
+
+| Endpoint | Format | Providers |
+| --- | --- | --- |
+| `/v1/chat/completions` | OpenAI chat completions | OpenAI, Google AI Studio, DeepSeek, OpenRouter and the other OpenAI-compatible providers |
+| `/v1/messages` | Anthropic messages | Anthropic, and DeepSeek through its Anthropic-compatible endpoint |
+| `/v1/systemone` | TypeSafe System One | TypeSafe, OpenRouter |
+
+Calling a model on the wrong endpoint, for example an Anthropic model on `/v1/chat/completions`, returns `400 unsupported_format`. The [provider list](/docs/providers/) shows the endpoints of every provider.
+
+## Errors
+
+| Error | Cause |
+| --- | --- |
+| `400 invalid_model` | Not in `provider/model` form, an unknown provider slug, or an unknown alias |
+| `400 unsupported_format` | The provider does not serve this endpoint's format |
+| `403 provider_disabled` | The provider is in the catalog but not enabled yet |
+| `424 missing_provider_key` | The workspace has no key for that provider |
+
+An unknown model ID with a known provider reaches the provider, which returns its own error (often a 404), passed through as `upstream_error`.
+
+## List your models
+
+`GET /v1/models` lists the models of every provider your workspace has a key for, already prefixed with the provider slug, in OpenAI's list format:
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+curl https://api.openpike.dev/v1/models -H "Authorization: Bearer $OPENPIKE_API_KEY"
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+curl.exe https://api.openpike.dev/v1/models -H "Authorization: Bearer $env:OPENPIKE_API_KEY"
+```
+
+</TabItem>
+</Tabs>
+
+OpenPike builds the list from each provider's own models endpoint and caches it for an hour. See [GET /v1/models](/docs/api/reference/operations/listmodels/).

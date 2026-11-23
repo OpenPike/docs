@@ -1,0 +1,781 @@
+openapi: 3.1.0
+info:
+  title: OpenPike API
+  version: 0.5.0
+  summary: The public API of the OpenPike gateway.
+  description: |
+    OpenPike is a bring-your-own-key LLM gateway. It serves the OpenAI chat completions and Responses
+    formats, the Anthropic messages format and TypeSafe's System One format, and forwards each
+    request to the provider named in the model, with your own provider key.
+
+    Request bodies pass through to the provider untouched, unknown fields included. OpenPike reads
+    only `model` (and `stream`) and strips its own `x-openpike-*` headers before forwarding.
+
+    Errors use each endpoint's native shape, so OpenAI and Anthropic SDKs parse them. See
+    https://openpike.dev/docs/api/errors/ for every error code.
+  contact:
+    email: support@openpike.dev
+servers:
+  - url: https://api.openpike.dev
+security:
+  - bearerAuth: []
+  - apiKeyHeader: []
+tags:
+  - name: Inference
+    description: Requests forwarded to a provider.
+  - name: Models
+    description: The models your workspace can use.
+  - name: Service
+    description: Gateway status.
+paths:
+  /v1/chat/completions:
+    post:
+      operationId: chatcompletions
+      summary: Chat completions (OpenAI format)
+      tags: [Inference]
+      description: |
+        OpenAI's chat completions format, for OpenAI, Google AI Studio, DeepSeek, OpenRouter and the
+        other OpenAI-compatible providers. The body is passed through to the provider; only
+        `model` is read and rewritten to the provider's own model ID.
+
+        **Streaming:** with `"stream": true` the response is server-sent events, passed through as
+        they arrive. OpenPike sets `stream_options.include_usage` for OpenAI-compatible providers
+        (unless the provider rejects it), so the last chunk carries token usage.
+
+        **Aliases:** a model named `openpike/<alias>` tries the alias's targets in order, falling
+        back before the first byte on `429`, `5xx`, a network error or an unknown model, at most 3
+        attempts. `x-openpike-model` and `x-openpike-attempts` say which target answered.
+      parameters:
+        - $ref: "#/components/parameters/Tags"
+        - $ref: "#/components/parameters/NoLog"
+        - $ref: "#/components/parameters/Run"
+        - $ref: "#/components/parameters/RunLabel"
+        - $ref: "#/components/parameters/RunMaxUsd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+            example:
+              model: deepseek/deepseek-flash
+              messages:
+                - role: user
+                  content: Say hello in five words.
+      responses:
+        "200":
+          description: The provider's response, passed through. JSON, or server-sent events when `stream` is true.
+          headers: &success
+            x-openpike-request-id:
+              $ref: "#/components/headers/RequestId"
+            x-openpike-provider:
+              $ref: "#/components/headers/Provider"
+            x-openpike-model:
+              $ref: "#/components/headers/Model"
+            x-openpike-attempts:
+              $ref: "#/components/headers/Attempts"
+            server-timing:
+              $ref: "#/components/headers/ServerTiming"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+              example:
+                id: chatcmpl-123
+                object: chat.completion
+                created: 1794837742
+                model: deepseek-flash
+                choices:
+                  - index: 0
+                    message:
+                      role: assistant
+                      content: Hello there, how are you?
+                    finish_reason: stop
+                usage:
+                  prompt_tokens: 13
+                  completion_tokens: 7
+                  total_tokens: 20
+            text/event-stream:
+              schema:
+                type: string
+                description: "OpenAI chat completion chunks as `data:` lines, ending with `data: [DONE]`."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ProviderDisabled"
+        "424":
+          $ref: "#/components/responses/MissingProviderKey"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/Upstream"
+  /v1/responses:
+    post:
+      operationId: responses
+      summary: Responses (OpenAI format)
+      tags: [Inference]
+      description: |
+        OpenAI's Responses API, for OpenAI and any provider whose `/v1/models` entries list the
+        `responses` format. Used by Codex CLI and `client.responses.create`. The body is passed
+        through to the provider; only `model` is read and rewritten to the provider's own model ID.
+        OpenPike does not translate Responses to other formats, so Claude and DeepSeek models are
+        not served here.
+
+        **Streaming:** with `"stream": true` the response is the provider's server-sent events,
+        passed through as they arrive. Usage is read from the final `response.completed` (or
+        `response.incomplete`, `response.failed`) event.
+
+        **Stored state:** `store`, `previous_response_id` and `conversation` are passed through.
+        A request with `previous_response_id` or `conversation` on an alias tries only the
+        alias's first target and never falls back, because the stored state lives at one provider.
+
+        **Not supported:** `"background": true` is rejected with `400 unsupported_parameter`,
+        because a background response carries no usage. Hosted tools (web search, file search, code
+        interpreter) pass through, but their provider fees are not in OpenPike's cost.
+      parameters:
+        - $ref: "#/components/parameters/Tags"
+        - $ref: "#/components/parameters/NoLog"
+        - $ref: "#/components/parameters/Run"
+        - $ref: "#/components/parameters/RunLabel"
+        - $ref: "#/components/parameters/RunMaxUsd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResponsesRequest"
+            example:
+              model: openai/gpt-6.1-terra
+              input: Say hello in five words.
+              store: false
+      responses:
+        "200":
+          description: The provider's response, passed through. JSON, or server-sent events when `stream` is true.
+          headers: *success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResponsesResponse"
+            text/event-stream:
+              schema:
+                type: string
+                description: "Responses stream events as `event:` and `data:` lines, ending with `response.completed`, `response.incomplete` or `response.failed`."
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ProviderDisabled"
+        "424":
+          $ref: "#/components/responses/MissingProviderKey"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/Upstream"
+  /v1/messages:
+    post:
+      operationId: messages
+      summary: Messages (Anthropic format)
+      tags: [Inference]
+      description: |
+        Anthropic's messages format, for Anthropic and for DeepSeek's Anthropic-compatible endpoint.
+        The body is passed through; the `anthropic-version` and `anthropic-beta` headers are
+        forwarded. Use `https://api.openpike.dev` (without `/v1`) as the Anthropic SDK's base URL.
+
+        **Streaming:** with `"stream": true` the response is Anthropic's server-sent events, passed
+        through. Token usage is read from `message_start` and `message_delta`.
+
+        **Errors** on this endpoint use Anthropic's shape. OpenPike's own `429` blocks have the type
+        `rate_limit_error`; they come without an `x-openpike-provider` header, which tells them
+        apart from a provider's rate limit.
+      parameters:
+        - $ref: "#/components/parameters/Tags"
+        - $ref: "#/components/parameters/NoLog"
+        - $ref: "#/components/parameters/Run"
+        - $ref: "#/components/parameters/RunLabel"
+        - $ref: "#/components/parameters/RunMaxUsd"
+        - name: anthropic-version
+          in: header
+          required: false
+          description: Forwarded to the provider. Anthropic's SDKs set it.
+          schema:
+            type: string
+            example: "2023-06-01"
+        - name: anthropic-beta
+          in: header
+          required: false
+          description: Forwarded to the provider.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessagesRequest"
+            example:
+              model: anthropic/claude-haiku-5-5
+              max_tokens: 100
+              messages:
+                - role: user
+                  content: Say hello in five words.
+      responses:
+        "200":
+          description: The provider's response, passed through. JSON, or server-sent events when `stream` is true.
+          headers: *success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagesResponse"
+              example:
+                id: msg_123
+                type: message
+                role: assistant
+                model: claude-haiku-5-5
+                content:
+                  - type: text
+                    text: Hello, nice to meet you.
+                stop_reason: end_turn
+                usage:
+                  input_tokens: 14
+                  output_tokens: 9
+            text/event-stream:
+              schema:
+                type: string
+                description: Anthropic message stream events.
+        "400":
+          $ref: "#/components/responses/AnthropicError"
+        "401":
+          $ref: "#/components/responses/AnthropicError"
+        "403":
+          $ref: "#/components/responses/AnthropicError"
+        "424":
+          $ref: "#/components/responses/AnthropicError"
+        "429":
+          $ref: "#/components/responses/AnthropicError"
+        "502":
+          $ref: "#/components/responses/AnthropicError"
+  /v1/systemone:
+    post:
+      operationId: systemone
+      summary: System One decisions (TypeSafe Jev)
+      tags: [Inference]
+      description: |
+        TypeSafe's System One format, served by TypeSafe and OpenRouter. Send a `state` and typed
+        `questions`; get `answers`. Not streamed. OpenPike forwards the body with the model
+        rewritten to the provider's own ID.
+      parameters:
+        - $ref: "#/components/parameters/Tags"
+        - $ref: "#/components/parameters/NoLog"
+        - $ref: "#/components/parameters/Run"
+        - $ref: "#/components/parameters/RunLabel"
+        - $ref: "#/components/parameters/RunMaxUsd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemOneRequest"
+            example:
+              model: typesafe/jev-1.13.0
+              state:
+                ticket: Customer reports the checkout page returns a 500 error for all users.
+              questions:
+                - id: urgent
+                  type: noul
+                  question: Is this ticket urgent?
+      responses:
+        "200":
+          description: The provider's response, passed through.
+          headers: *success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemOneResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ProviderDisabled"
+        "424":
+          $ref: "#/components/responses/MissingProviderKey"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          $ref: "#/components/responses/Upstream"
+  /v1/models:
+    get:
+      operationId: listmodels
+      summary: List models
+      tags: [Models]
+      description: |
+        The models of every provider the workspace has a key for, in OpenAI's list format, with IDs
+        already prefixed by the provider slug. Built from each provider's own models endpoint and
+        cached for an hour.
+      responses:
+        "200":
+          description: The model list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelList"
+              example:
+                object: list
+                data:
+                  - id: deepseek/deepseek-flash
+                    object: model
+                    created: 0
+                    owned_by: deepseek
+                    formats: [chat, messages]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      tags: [Service]
+      security: []
+      description: "Returns `{\"ok\": true}` when the gateway is up. No key needed."
+      responses:
+        "200":
+          description: The gateway is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                required: [ok]
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "An OpenPike virtual key, `Authorization: Bearer opk_live_...`. OpenAI SDKs send it this way."
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: An OpenPike virtual key in `x-api-key`. Anthropic SDKs send it this way.
+  parameters:
+    Tags:
+      name: x-openpike-tags
+      in: header
+      required: false
+      description: |
+        Comma-separated `key=value` pairs merged over the virtual key's tags for this request, for
+        example `agent=reviewer,env=prod`. At most 10 pairs; keys and values at most 64 characters.
+        Not forwarded to the provider.
+      schema:
+        type: string
+        example: agent=reviewer,env=prod
+    NoLog:
+      name: x-openpike-no-log
+      in: header
+      required: false
+      description: |
+        `1` or `true` keeps this request out of prompt logging even when the workspace has it on.
+        Not forwarded to the provider.
+      schema:
+        type: string
+        enum: ["1", "true"]
+    Run:
+      name: x-openpike-run
+      in: header
+      required: false
+      description: |
+        The run this request belongs to, 1 to 128 printable ASCII characters, for example a task or
+        session ID. Run limits on matching budgets cap each run's spend, requests and wall time; a run
+        at a cap gets `429 run_limit_exceeded`. Not forwarded to the provider.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        example: task-8841
+    RunLabel:
+      name: x-openpike-run-label
+      in: header
+      required: false
+      description: A human name for the run, at most 200 characters. Needs `x-openpike-run`. Not forwarded.
+      schema:
+        type: string
+        maxLength: 200
+    RunMaxUsd:
+      name: x-openpike-run-max-usd
+      in: header
+      required: false
+      description: |
+        A spend cap in dollars for the run, above zero. Only lowers a budget's run spend cap. Needs
+        `x-openpike-run`. Not forwarded.
+      schema:
+        type: string
+        example: "5"
+  headers:
+    RequestId:
+      description: The request ID, also shown in Logs.
+      schema:
+        type: string
+        example: req_QhMBW1esl4VW2o8NXDEcOLsS
+    Provider:
+      description: The provider that served the request, or that returned an upstream error.
+      schema:
+        type: string
+        example: deepseek
+    Model:
+      description: The `provider/model` that served the request; differs from the request for aliases.
+      schema:
+        type: string
+        example: deepseek/deepseek-flash
+    Attempts:
+      description: Upstream attempts, 1 when no fallback happened.
+      schema:
+        type: integer
+        example: 1
+    ServerTiming:
+      description: "`gate;dur=<ms>`: time spent checking budgets, pauses and plan limits."
+      schema:
+        type: string
+        example: gate;dur=4.2
+    RetryAfter:
+      description: Seconds until the request may succeed. Set on OpenPike's `429` blocks, and passed through from the provider on upstream errors.
+      schema:
+        type: integer
+  schemas:
+    Error:
+      type: object
+      description: The error shape of chat completions, Responses, System One and models.
+      properties:
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+              const: openpike_error
+            code:
+              type: string
+              enum:
+                - invalid_virtual_key
+                - invalid_request
+                - invalid_tags
+                - invalid_model
+                - unsupported_format
+                - unsupported_parameter
+                - provider_disabled
+                - missing_provider_key
+                - budget_exceeded
+                - loop_detected
+                - scope_paused
+                - run_limit_exceeded
+                - plan_limit_reached
+                - plan_limit_throttled
+                - too_many_auth_failures
+                - upstream_unreachable
+                - upstream_error
+                - internal_error
+            message:
+              type: string
+            request_id:
+              type: string
+          required: [type, code, message, request_id]
+      required: [error]
+    AnthropicError:
+      type: object
+      description: The error shape of `/v1/messages`, Anthropic's own.
+      properties:
+        type:
+          type: string
+          const: error
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+              description: "`invalid_request_error`, `authentication_error`, `permission_error`, `not_found_error`, `rate_limit_error`, `api_error`, or the provider's own type on upstream errors."
+            message:
+              type: string
+          required: [type, message]
+      required: [type, error]
+    ChatCompletionRequest:
+      type: object
+      description: OpenAI's chat completions request. Only the fields OpenPike reads are listed; every other field is passed to the provider unchanged.
+      additionalProperties: true
+      properties:
+        model:
+          type: string
+          description: "`provider/model` or `openpike/<alias>`."
+          example: deepseek/deepseek-flash
+        messages:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        stream:
+          type: boolean
+          default: false
+      required: [model, messages]
+    ChatCompletionResponse:
+      type: object
+      description: OpenAI's chat completion object, as returned by the provider.
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        usage:
+          type: object
+          additionalProperties: true
+    ResponsesRequest:
+      type: object
+      description: OpenAI's Responses request. Only the fields OpenPike reads are listed; every other field is passed to the provider unchanged.
+      additionalProperties: true
+      properties:
+        model:
+          type: string
+          description: "`provider/model` or `openpike/<alias>`."
+          example: openai/gpt-6.1-terra
+        input:
+          description: A string or a list of input items.
+        stream:
+          type: boolean
+          default: false
+        background:
+          type: boolean
+          description: Must be false or absent. `true` is rejected with `400 unsupported_parameter`.
+        previous_response_id:
+          type: string
+          description: Passed through. On an alias, only the first target is tried.
+        conversation:
+          description: Passed through. On an alias, only the first target is tried.
+      required: [model]
+    ResponsesResponse:
+      type: object
+      description: OpenAI's response object, as returned by the provider.
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        status:
+          type: string
+        output:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        usage:
+          type: object
+          additionalProperties: true
+    MessagesRequest:
+      type: object
+      description: Anthropic's messages request. Only the fields OpenPike reads are listed; every other field is passed to the provider unchanged.
+      additionalProperties: true
+      properties:
+        model:
+          type: string
+          description: "`provider/model` or `openpike/<alias>`."
+          example: anthropic/claude-haiku-5-5
+        max_tokens:
+          type: integer
+        messages:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        stream:
+          type: boolean
+          default: false
+      required: [model, max_tokens, messages]
+    MessagesResponse:
+      type: object
+      description: Anthropic's message object, as returned by the provider.
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        model:
+          type: string
+        content:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        usage:
+          type: object
+          additionalProperties: true
+    SystemOneRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        model:
+          type: string
+          example: typesafe/jev-1.13.0
+        state:
+          type: object
+          additionalProperties: true
+          description: The facts the questions are about.
+        questions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+                description: "`choice`, `score` or `noul` (yes, no or unknown)."
+              question:
+                type: string
+      required: [model, state, questions]
+    SystemOneResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        model:
+          type: string
+        answers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        usage:
+          type: object
+          additionalProperties: true
+    ModelList:
+      type: object
+      properties:
+        object:
+          type: string
+          const: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              object:
+                type: string
+                const: model
+              created:
+                type: integer
+              owned_by:
+                type: string
+              formats:
+                type: array
+                items:
+                  type: string
+                  enum: [chat, responses, messages, systemone]
+                description: "OpenPike extension: the request formats this model's provider serves through OpenPike (`chat` is /v1/chat/completions, `responses` is /v1/responses)."
+            required: [id, object]
+      required: [object, data]
+  responses:
+    BadRequest:
+      description: "`invalid_request` (body is not valid JSON, or not a JSON object), `invalid_tags`, `invalid_model` (not `provider/model`, unknown provider or alias), `unsupported_format` (the provider does not serve this endpoint's format) or `unsupported_parameter` (`background: true` on /v1/responses)."
+      headers:
+        x-openpike-request-id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              type: openpike_error
+              code: invalid_model
+              message: Unknown provider "deepsek".
+              request_id: req_...
+    Unauthorized:
+      description: "`invalid_virtual_key`: missing, unknown or revoked virtual key, or a key disabled because the plan allows fewer keys."
+      headers:
+        x-openpike-request-id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              type: openpike_error
+              code: invalid_virtual_key
+              message: The API key is invalid or revoked.
+              request_id: req_...
+    ProviderDisabled:
+      description: "`provider_disabled`: the provider is in the catalog but not enabled yet."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    MissingProviderKey:
+      description: "`missing_provider_key`: the workspace has no key for that provider."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: |
+        An OpenPike block, before the provider is called: `budget_exceeded`, `loop_detected`,
+        `scope_paused`, `run_limit_exceeded`, `plan_limit_reached`, `plan_limit_throttled` or
+        `too_many_auth_failures`.
+        A `429` from the provider itself comes back as `upstream_error` with the provider's status.
+      headers:
+        retry-after:
+          $ref: "#/components/headers/RetryAfter"
+        x-openpike-request-id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              type: openpike_error
+              code: budget_exceeded
+              message: The hard budget for agent=reviewer is used up for this period.
+              request_id: req_...
+    Upstream:
+      description: |
+        `upstream_unreachable` (502): the provider could not be reached. `upstream_error`: the
+        provider returned an error; its status code is passed through (so it may be any 4xx or
+        5xx) with its message, after anything that looks like a key is removed.
+      headers:
+        x-openpike-provider:
+          $ref: "#/components/headers/Provider"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    AnthropicError:
+      description: The same errors as on the other endpoints, in Anthropic's shape. See the errors page for the type each status maps to.
+      headers:
+        retry-after:
+          $ref: "#/components/headers/RetryAfter"
+        x-openpike-request-id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AnthropicError"
+          example:
+            type: error
+            error:
+              type: rate_limit_error
+              message: The hard budget for agent=reviewer is used up for this period.

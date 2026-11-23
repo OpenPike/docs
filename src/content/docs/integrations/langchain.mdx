@@ -1,0 +1,37 @@
+---
+title: LangChain
+description: Use OpenPike from LangChain with ChatOpenAI and a custom base URL, in Python and TypeScript.
+sidebar:
+  order: 13
+---
+
+import Example from "../../../components/Example.astro";
+
+{/* Source, read 2026-11-16: https://docs.langchain.com/oss/python/integrations/chat/openai */}
+
+LangChain's `ChatOpenAI` takes a base URL and key, so it talks to OpenPike's chat completions endpoint with any model there.
+
+| | Python (`langchain-openai`) | TypeScript (`@langchain/openai`) |
+| --- | --- | --- |
+| Base URL | `base_url="https://api.openpike.dev/v1"` | `configuration: { baseURL: "https://api.openpike.dev/v1" }` |
+| Key | `api_key=` a virtual key | `apiKey:` a virtual key |
+| Tags | `default_headers={"x-openpike-tags": ...}` | `configuration: { defaultHeaders: {...} }` |
+| Model | `model="deepseek/deepseek-flash"` | `model: "deepseek/deepseek-flash"` |
+
+## Install
+
+```bash
+pip install langchain-openai             # Python
+npm install @langchain/openai            # TypeScript
+```
+
+## Example
+
+<Example name="langchain/chat" />
+
+## Notes
+
+- **Stay on Chat Completions for most providers.** LangChain's docs say `ChatOpenAI` switches to OpenAI's Responses API when you use a Responses-only feature or set `use_responses_api=True`. OpenPike serves the Responses API only for providers that serve it themselves (OpenAI, xAI, Groq and OpenRouter; it does not translate formats), so leave those off for DeepSeek, Gemini and the other providers.
+- **Claude models** need the Anthropic format; they are not available through `ChatOpenAI`. Use an OpenAI-format model, or the [Anthropic SDK](/docs/integrations/anthropic-sdk/) directly.
+- **A run ID per task.** To cap one agent run with a [run budget](/docs/features/run-budgets/), create the model per task with `x-openpike-run` in `default_headers` (TypeScript: `configuration.defaultHeaders`), and set `max_retries=0` so a stopped run is not retried.
+- Agents, chains and tools built on `ChatOpenAI` work unchanged, and every call they make shows in OpenPike's **Logs**.

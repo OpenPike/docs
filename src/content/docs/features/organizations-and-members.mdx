@@ -1,0 +1,59 @@
+---
+title: Organizations and members
+description: Organize your account into workspaces, invite people, and see who changed what in the audit log.
+sidebar:
+  order: 11
+---
+
+An organization is your account in OpenPike: it holds the plan, the members and the workspaces; this page covers workspaces, invitations, roles and the audit log.
+
+## Workspaces
+
+Each workspace has its own provider keys, virtual keys, budgets, aliases, alert channels, prompt logging settings and logs. Common setups:
+
+- one workspace per environment, such as `staging` and `production`;
+- one per team, so each team manages its own keys and budgets;
+- one per customer project, when you build for clients.
+
+Owners create a workspace with **New workspace** at the top of the dashboard and rename it in its Settings. The switcher at the top lists every workspace you can open, grouped by organization. There is no limit on the number of workspaces; the plan's limits on keys and requests count across all of them. See [Staging and production workspaces](/docs/recipes/staging-and-production/).
+
+## Invite people
+
+An owner opens **Members**, enters an email address and selects **Send invite**. The person gets an email with a sign-in link. The link works once and expires after 15 minutes; if it has expired, they can request a new sign-in link at [app.openpike.dev](https://app.openpike.dev) with the same address, as long as the invitation is pending. New invitees join as members. The invitation says who sent it. An invitee can also select **Continue with GitHub** instead, when the invited address is the primary verified email of their GitHub account.
+
+Everyone gives their name the first time they sign in, and it is shown on the Members page, in the account menu and in the audit log, with the email address for anyone who has not set one yet.
+
+The dashboard cannot change a member's role yet; to make someone an owner, write to [support@openpike.dev](mailto:support@openpike.dev). Owners can revoke a pending invitation and remove members. An organization always keeps at least one owner, so the last owner cannot be removed.
+
+## Sign-in methods
+
+Everyone can sign in with an emailed link. You can also sign in with GitHub:
+
+- **Continue with GitHub** on the sign-in page signs you in with the GitHub account's primary email, which must be verified on GitHub. If an OpenPike account with that email exists, that account is used and GitHub is connected to it. Otherwise a new account is created, under the same rules as an email sign-up.
+- Once connected, GitHub signs you in to the same account even if you later change the email on GitHub.
+- In any workspace's **Settings**, under **Sign-in methods**, you can see the connected GitHub account (**GitHub: connected as @username**), **Disconnect** it, or **Connect** one if you signed up by email.
+- Email links always keep working, so disconnecting GitHub never locks you out.
+
+OpenPike asks GitHub only for your profile and email addresses (`read:user` and `user:email`). It keeps your GitHub user ID and username, and does not keep GitHub's access token.
+
+## Roles
+
+Everyone in an organization can open every workspace in it.
+
+| | Owner | Member |
+| --- | --- | --- |
+| Logs, activity, agents | Yes | Yes |
+| Virtual keys, budgets, pauses, aliases | Yes | Yes |
+| Provider keys: add, test, remove | Yes | No |
+| Alert channels, workspace names, new workspaces | Yes | No |
+| Members and invitations | Yes | No |
+| Plan and billing | Yes | View only |
+| Prompt logging settings | Yes | No |
+| Stored prompts | Yes | Only if an owner allows it |
+| Audit log | Yes | No |
+
+## Audit log
+
+On the Business plan, owners see the **Audit log** of the organization: every change made in the dashboard or by OpenPike's administrators, with who made it, what changed and in which workspace. It covers keys, budgets, aliases, pauses, alert channels, members, plan changes, settings and every view of a stored prompt. It never contains secret values such as keys or webhook URLs.
+
+On Free and Team the log is recorded too, so the full history is there when you move to Business.

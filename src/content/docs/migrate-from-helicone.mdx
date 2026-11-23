@@ -1,0 +1,180 @@
+---
+title: Migrate from Helicone
+description: Move a Helicone proxy integration to OpenPike, with a header-by-header map and before and after code for the OpenAI and Anthropic SDKs.
+sidebar:
+  order: 5
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+{/* Helicone conventions read on 2026-11-21 from https://docs.helicone.ai/getting-started/integration-method/openai-proxy, https://docs.helicone.ai/integrations/anthropic/javascript, https://docs.helicone.ai/helicone-headers/header-directory and https://docs.helicone.ai/getting-started/integration-method/gateway */}
+
+This page shows what changes when you move an integration from Helicone's proxy to OpenPike, and which Helicone features have an OpenPike equivalent and which do not yet.
+
+Helicone's own proxy docs describe that integration method as maintained but no longer actively developed. OpenPike is built to keep going: it routes, budgets and reports on every request, and it can stop an agent that loops or spends too fast.
+
+<Aside type="note">
+This page covers Helicone's proxy integration, the one that changes the base URL and sends `Helicone-Auth`. Helicone's separate AI Gateway at `https://ai-gateway.helicone.ai` is a different product and is not covered here, although a move from it would look much the same.
+</Aside>
+
+## What changes
+
+| | Helicone proxy | OpenPike |
+| --- | --- | --- |
+| OpenAI base URL | `https://oai.helicone.ai/v1` | `https://api.openpike.dev/v1` |
+| Anthropic base URL | `https://anthropic.helicone.ai` | `https://api.openpike.dev` (the SDK adds `/v1/messages`) |
+| Key your code sends | Your provider key, plus your Helicone key in `Helicone-Auth` | An OpenPike virtual key, `opk_live_...` |
+| Where the provider key lives | In your code or environment | On the Providers page, encrypted; not in your code |
+| Who bills the tokens | The provider, on your own account | The provider, on your own account |
+| Model names | The provider's own model ID, for example `gpt-4o-mini` | `provider/` plus the provider's model ID, for example `openai/gpt-4o-mini` |
+| Labels on a request | `Helicone-Property-<name>` and `Helicone-User-Id` | `x-openpike-tags`, as `key=value` pairs |
+| Stop a runaway agent | Not part of the proxy | Loop limits, run limits, and a Pause button per agent |
+
+The provider's model ID goes after the slash unchanged, so use the names from that provider's own documentation. See [Model names](/docs/features/model-names/). To list the models your keys can use:
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+curl https://api.openpike.dev/v1/models -H "Authorization: Bearer $OPENPIKE_API_KEY"
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+curl.exe https://api.openpike.dev/v1/models -H "Authorization: Bearer $env:OPENPIKE_API_KEY"
+```
+
+</TabItem>
+</Tabs>
+
+## Header map
+
+Each Helicone header, what it does, and what OpenPike does instead. Helicone's full list is in its [header directory](https://docs.helicone.ai/helicone-headers/header-directory).
+
+| Helicone | OpenPike | Notes |
+| --- | --- | --- |
+| `Helicone-Auth: Bearer <key>` | Not needed | The provider key moves to the Providers page. Your code sends the virtual key as its API key. |
+| `Helicone-Property-<name>: <value>` | `x-openpike-tags: <name>=<value>` | Tags are shown in Activity and Logs, and budgets can count them. At most 10 pairs, each key and value at most 64 characters. |
+| `Helicone-User-Id: <id>` | `x-openpike-tags: user=<id>` | OpenPike has no separate user field; a tag does the same job. |
+| `Helicone-Session-Id`, `Helicone-Session-Path`, `Helicone-Session-Name` | `x-openpike-run: <id>` and `x-openpike-run-label: <name>` | A run groups the requests of one agent task and can cap its spend, requests and time. OpenPike does not draw a session trace tree. See [Run budgets](/docs/features/run-budgets/). |
+| `Helicone-Omit-Request`, `Helicone-Omit-Response` | Nothing to set | OpenPike stores no prompt or response bodies unless an owner turns on prompt logging. To keep one request out of it, send `x-openpike-no-log: 1`. See [Prompt logging](/docs/features/prompt-logging/). |
+| `Helicone-Fallbacks` | An alias with targets in order, such as `openpike/fast` | Set up once in the dashboard, then call the alias name as the model. See [Aliases and fallbacks](/docs/features/aliases-and-fallbacks/). |
+| `Helicone-Model-Override` | Change the model name | |
+| `Helicone-Target-Url`, `Helicone-OpenAI-Api-Base` | Not used | OpenPike does not take a target URL from the client. The provider is named in the model. |
+| `Helicone-Cache-Enabled`, `Cache-control`, `Helicone-Cache-Bucket-Max-Size`, `Helicone-Cache-Seed` | No response cache yet | Providers' own prompt caching still works, and cached tokens are priced separately. See [Usage and cost](/docs/features/usage-and-cost/). |
+| `Helicone-RateLimit-Policy` | Budgets and loop limits | Budgets cap spend by hour, day or month. Loop limits pause a key or tag that sends too many requests or spends too much per minute. |
+| `Helicone-Retry-Enabled` and the `helicone-retry-*` headers | Use your SDK's retry setting | OpenPike does not retry a request for you. Aliases move to the next target on a `429` or `5xx`. |
+| `Helicone-Moderations-Enabled`, `Helicone-LLM-Security-Enabled`, `Helicone-Token-Limit-Exception-Handler` | No equivalent | OpenPike has no guardrails, moderation or context trimming. Handle these in your app. |
+| `Helicone-Request-Id` (set by you) | No equivalent | OpenPike returns its own `x-openpike-request-id` on every response. |
+| `Helicone-Posthog-Key`, `Helicone-Posthog-Host`, `Helicone-Prompt-Id` | No equivalent | |
+
+Response headers change too: `Helicone-Id` becomes `x-openpike-request-id`, and `x-openpike-provider` and `x-openpike-model` show which provider and model served the request. OpenPike returns no cache or rate limit headers of its own.
+
+## Side by side
+
+### OpenAI SDK
+
+Before, with the Helicone proxy:
+
+```python
+import os
+
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://oai.helicone.ai/v1",
+    api_key=os.environ["OPENAI_API_KEY"],
+    default_headers={
+        "Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}",
+        "Helicone-Property-Agent": "my-app",
+        "Helicone-User-Id": "user-42",
+    },
+)
+
+client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+```
+
+After, with OpenPike. The OpenAI key is now on the Providers page, so the code holds only the virtual key:
+
+```python
+import os
+
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.openpike.dev/v1",
+    api_key=os.environ["OPENPIKE_API_KEY"],
+    default_headers={"x-openpike-tags": "agent=my-app,user=user-42"},
+)
+
+client.chat.completions.create(
+    model="openai/gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+```
+
+In TypeScript the same change is `baseURL`, `apiKey` and `defaultHeaders`, with the same header names.
+
+### Anthropic SDK
+
+Before, with the Helicone proxy:
+
+```python
+import os
+
+from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="https://anthropic.helicone.ai",
+    api_key=os.environ["ANTHROPIC_API_KEY"],
+    default_headers={
+        "Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}",
+        "Helicone-Property-Agent": "my-app",
+    },
+)
+```
+
+After, with OpenPike:
+
+```python
+import os
+
+from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="https://api.openpike.dev",
+    api_key=os.environ["OPENPIKE_API_KEY"],
+    default_headers={"x-openpike-tags": "agent=my-app"},
+)
+
+client.messages.create(
+    model="anthropic/claude-sonnet-4-5",
+    max_tokens=512,
+    messages=[{"role": "user", "content": "Hello"}],
+)
+```
+
+The base URL has no `/v1`, because the SDK adds `/v1/messages` itself. See the [Anthropic SDK guide](/docs/integrations/anthropic-sdk/).
+
+## What OpenPike adds
+
+These are the reasons to move beyond a logging proxy:
+
+- **Budgets** per key, tag or workspace, with a soft alert and a hard stop. See [Budgets](/docs/features/budgets/).
+- **Loop detection** that pauses a key or tag when its requests or spend per minute spike. See [Loop detection and pausing](/docs/features/loop-detection/).
+- **Run budgets** that cap one agent run's spend, requests and time, using `x-openpike-run`. See [Run budgets](/docs/features/run-budgets/).
+- **Pausing an agent** from the Agents page, with one click, and resuming it the same way.
+- **Alerts** by email and Slack. See [Alerts](/docs/features/alerts/).
+
+## After the switch
+
+- Set a [budget](/docs/features/budgets/) on each virtual key before you send real traffic.
+- Check the first requests in **Logs**. Each one shows the model that served it and its cost.
+- Tags replace Helicone properties. If a tag you expected is missing in Activity, check that the header is spelled `x-openpike-tags` and that each pair has the form `key=value`.
+- If a request fails with `invalid_model`, the model name is not in `provider/model` form. With `missing_provider_key`, add that provider's key on the Providers page. See [Errors](/docs/api/errors/).

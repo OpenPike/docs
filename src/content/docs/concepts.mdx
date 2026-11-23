@@ -1,0 +1,59 @@
+---
+title: Concepts
+description: Organizations, workspaces, members, provider keys, virtual keys, tags and plans, and how they fit together.
+sidebar:
+  order: 3
+---
+
+import PlanTable from "../../components/PlanTable.astro";
+
+This page explains the handful of objects OpenPike is built from, so the rest of the docs read easily.
+
+## Organization
+
+Your account is an **organization**. It holds the plan and its billing, the members and their roles, invitations, the audit log, and the plan's limits, which count across all its workspaces. When you first sign in, OpenPike creates an organization for you with one workspace in it.
+
+## Workspace
+
+An organization holds one or more **workspaces**. Each workspace has its own provider keys, virtual keys, budgets, aliases, alert channels, prompt logging settings and logs. Use them to separate teams or environments, for example `staging` and `production`. Owners add workspaces with **New workspace** at the top of the dashboard; there is no limit on how many.
+
+## Members and roles
+
+Everyone in an organization can open every workspace in it. There are two roles:
+
+| | Owner | Member |
+| --- | --- | --- |
+| Use workspaces: logs, activity, agents | Yes | Yes |
+| Virtual keys, budgets, pauses, aliases | Yes | Yes |
+| Provider keys: add, test, remove | Yes | No |
+| Alert channels, workspace names, new workspaces | Yes | No |
+| Members and invitations | Yes | No |
+| Plan and billing | Yes | View only |
+| Audit log (Business) | Yes | No |
+| Stored prompts (Business, prompt logging) | Yes | Only if an owner allows it |
+
+An organization always keeps at least one owner. See [Organizations and members](/docs/features/organizations-and-members/).
+
+## Provider key
+
+A **provider key** is your own API key for a provider such as OpenAI or Anthropic. OpenPike stores it encrypted with the workspace's own data key, decrypts it in memory only for the request that uses it, and never shows it again. If a workspace has more than one key for the same provider, OpenPike uses the newest one that has not been removed. See [Provider keys](/docs/features/provider-keys/).
+
+## Virtual key
+
+A **virtual key** (`opk_live_...`) is what your agents and apps send to OpenPike instead of a provider key. Give each agent, developer or app its own: you can see its spend, put a budget or a loop limit on it, or revoke it, without touching the others. OpenPike stores only a hash, so the full key is shown once, when you create it. Revoking a key takes effect on its next request. See [Virtual keys and tags](/docs/features/virtual-keys-and-tags/).
+
+## Tags
+
+**Tags** are `key=value` pairs such as `agent=pr-reviewer` or `env=prod`. A virtual key carries tags, and a request can add more with the `x-openpike-tags` header. Spend is reported per tag, and budgets and loop limits can target one tag. The `agent` tag is special in the dashboard: the Agents page groups spend by it and pauses one agent with a click.
+
+## Model names
+
+Models are named `provider/model`: the provider's slug, then the provider's own model ID, which goes upstream unchanged. For example `deepseek/deepseek-flash` or `anthropic/claude-sonnet-5-5`. Names starting with `openpike/` are aliases you define. See [Model names](/docs/features/model-names/).
+
+## Plans
+
+Plans are a flat price per organization, never a share of your token spend. Limits count across all the organization's workspaces.
+
+<PlanTable />
+
+At the monthly request limit, requests are blocked or throttled, as the organization chooses. See [Billing and plan limits](/docs/features/billing-and-plan-limits/).

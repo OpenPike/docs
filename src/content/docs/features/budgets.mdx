@@ -1,0 +1,85 @@
+---
+title: Budgets
+description: Cap spend per workspace, virtual key or tag, by hour, day or month, with soft limits that alert and hard limits that block.
+sidebar:
+  order: 5
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+A budget caps what a workspace, one virtual key, or one tag may spend in an hour, a day or a month; this page explains the scopes, the two kinds of limit, and exactly when a request is blocked.
+
+## Create a budget
+
+Open **Budgets** in the workspace and add one. On the **Keys** page, **Set budget** opens the key's existing budgets for editing, and adds a new one only when you choose **Add another budget**. Members and owners can both manage budgets.
+
+| Setting | Choices |
+| --- | --- |
+| Scope | **Workspace** (every request in it), one **virtual key**, or one **tag** such as `agent=reviewer` |
+| Period | **Hour**, **day** or **month**: calendar periods in UTC, so a day budget resets at 00:00 UTC (the dashboard shows the reset in your local time, with the zone) |
+| Soft limit | Optional. Sends an alert once per period when spend reaches it |
+| Hard limit | Optional. Blocks requests once spend reaches it, until the period resets |
+
+The same form holds the scope's [loop detection](/docs/features/loop-detection/) limits and its [run limits](/docs/features/run-budgets/), which cap each agent run's spend, requests and time. Changes apply to the next request.
+
+## Which budgets apply to a request
+
+Every budget that matches the request applies, and any one of them can block it:
+
+- the workspace's budgets,
+- budgets on the virtual key that sent it,
+- budgets on each of its tags, from the key and from the `x-openpike-tags` header.
+
+So a request from a key tagged `agent=reviewer` counts toward the workspace's monthly budget, the key's daily budget and the `agent=reviewer` budget at the same time.
+
+## Soft and hard limits
+
+When spend reaches the **soft limit**, OpenPike sends an alert to the workspace's alert channels, once per period. Requests keep flowing.
+
+When spend reaches the **hard limit**, OpenPike sends an alert, once per period, and blocks every later request in that scope with:
+
+```text
+HTTP/1.1 429 Too Many Requests
+retry-after: 37012
+
+{"error": {"type": "openpike_error", "code": "budget_exceeded", "message": "Agent \"reviewer\" reached its $50 daily hard limit. Requests resume at midnight UTC (in 4h 20m), or raise the limit at https://app.openpike.dev/w/ws_.../budgets.", "request_id": "req_..."}}
+```
+
+`retry-after` is the number of seconds until the period resets. On `/v1/messages` the error has Anthropic's shape, with type `rate_limit_error`. A blocked request never reaches the provider, so it costs nothing. To let requests through again before the reset, raise or remove the hard limit.
+
+<Aside type="caution" title="One request can overshoot">
+The cost of a request is only known once its response ends. OpenPike checks budgets before each request, so the request that crosses a hard limit completes, and so do requests that were already running at that moment. Tools such as Claude Code send several requests in parallel (the main model plus background calls to a small model), so several can be admitted before the first one finishes, and spend can end well past a small cap: $0.04 against a $0.01 limit is possible. The next request after they finish is blocked. Set the hard limit a little below the amount you must not exceed.
+</Aside>
+
+## Budgets of revoked keys
+
+When you revoke a virtual key, its budgets become inactive: **Budgets** hides them unless you tick **Show budgets for revoked keys** (then they read "Key revoked"), and they no longer send forecast alerts or appear in forecasts. Nothing is deleted, so their history stays, and the budgets come back if the key is ever restored. Tag and workspace budgets are not affected.
+
+## What counts as spend
+
+Spend is the cost OpenPike computes from the provider's own token counts and the [price table](/docs/features/usage-and-cost/). Requests to models without a known price have no cost, so they add nothing to budgets; they still count toward the plan's monthly requests. Requests blocked by OpenPike cost nothing.
+
+## Seeing where you stand
+
+- **Activity** shows each budget's spend this period as a bar, amber from 80% and red at the limit.
+- **Budgets** shows the same per budget, and the sidebar marks how many are blocked.
+- **Agents** and **Keys** show spend per agent and per key.
+
+## Spend forecast
+
+For every daily and monthly budget, **Budgets** shows the projected spend at the end of the period and the date the soft and hard limits will be crossed, in red when the hard limit will be hit before the period ends. **Activity** shows the projected total for the month.
+
+The projection extends the period so far, weighted toward the most recent 3 units (the last 3 days for a monthly budget, the last 3 hours for a daily one): the rate is 70% the recent rate and 30% the average rate for the whole period. Until the period is one unit old (one day of the month, one hour of the day) it shows "not enough data". It is an estimate from past spend, and it counts only requests that have a cost.
+
+To be warned early, turn on **Warn me before I hit this** on a monthly budget with a hard limit. OpenPike then sends one [forecast alert](/docs/features/alerts/) per month when, at the current rate, the hard limit will be reached with at least 2 days left. Nothing is blocked by the warning. The forecast is computed on page load and in the daily job from usage already stored, and adds no work to requests.
+
+## If the budget service is unreachable
+
+Budgets are checked by a small per-organization service next to the gateway. If it cannot be reached, OpenPike lets the request through rather than failing your traffic, and emails the workspace's owners, at most once every 15 minutes. Those requests still appear in Logs with their cost, but they may not count toward budget totals.
+
+## Related
+
+- [A budget per developer](/docs/recipes/budget-per-developer/)
+- [Stop a runaway agent](/docs/recipes/stop-a-runaway-agent/)
+- [Run budgets](/docs/features/run-budgets/)
+- [Alerts](/docs/features/alerts/)

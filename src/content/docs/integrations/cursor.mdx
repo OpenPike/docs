@@ -1,0 +1,50 @@
+---
+title: Cursor
+description: Use OpenPike for Cursor's chat models with your own OpenAI-format key and Cursor's base URL override.
+sidebar:
+  order: 3
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+{/*
+  Sources, read 2026-11-16:
+  https://cursor.com/docs/settings/api-keys (official: own keys, chat models only, requests routed through Cursor's servers)
+  The "Override OpenAI Base URL" setting is not described in Cursor's official docs; its name and behavior come from
+  Cursor community forum threads with staff answers:
+  https://forum.cursor.com/t/how-to-use-a-custom-openai-compatible-api-in-cursor-setup-limits-and-tips/171497
+  https://forum.cursor.com/t/can-the-api-key-and-base-url-corresponding-to-a-custom-model-be-set-separately-when-adding-a-cursor/137108
+*/}
+
+Cursor can send its chat requests to an OpenAI-compatible endpoint with your own key, so you can route them through OpenPike for chat completions models such as DeepSeek, OpenAI and Gemini.
+
+| | |
+| --- | --- |
+| OpenPike endpoint | `POST /v1/chat/completions` |
+| Base URL | `https://api.openpike.dev/v1` |
+| Key | A virtual key, in Cursor's OpenAI API key field |
+| Models | `provider/model` names you add as custom models |
+| Tags | On the virtual key (Cursor cannot add headers) |
+
+<Aside type="caution" title="Limits that come from Cursor">
+- Cursor's documentation says custom keys **only work with chat models**; Tab completion keeps using Cursor's own models.
+- Cursor **routes all requests through its own servers** to build the final prompt, so OpenPike must be reachable from the internet. A local gateway on `localhost` does not work.
+- The base URL override is **global** for OpenAI-format requests and is described only in Cursor's community forum, not its official docs. When it is on, Cursor's own OpenAI-family models may also go to OpenPike; turn it off to switch back.
+</Aside>
+
+## 1. Create a key for Cursor
+
+On the **Keys** page, create a virtual key with the tag `agent=cursor`. Cursor cannot send custom headers, so the tag on the key is what attributes its spend.
+
+## 2. Configure Cursor
+
+1. Open **Cursor Settings**, then **Models**, then the **API Keys** section.
+2. Paste the virtual key into the **OpenAI API Key** field and turn the key on.
+3. Turn on **Override OpenAI Base URL** and enter `https://api.openpike.dev/v1`.
+4. Add a custom model with the exact OpenPike name, for example `deepseek/deepseek-flash` or `openai/gpt-5.4-mini`, and select it in the chat.
+
+Claude models are not available this way: OpenPike serves them on the Anthropic format only, and Cursor's override is for the OpenAI format.
+
+## 3. Check it works
+
+Send a chat message with the custom model selected, then open **Logs** in OpenPike: the request appears with the agent `cursor`.

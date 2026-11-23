@@ -1,0 +1,22 @@
+---
+// Replaces Starlight's ThemeProvider so the docs start dark, like the site and the dashboard.
+// A reader's own choice in the theme menu (light, dark or auto) is kept in localStorage as before.
+---
+
+{/* Inline on purpose, so the page does not flash; its hash is allowed by the docs CSP. */}
+<script is:inline>
+	(() => {
+		let stored = null;
+		try {
+			stored = localStorage.getItem('starlight-theme');
+			if (!stored) localStorage.setItem('starlight-theme', (stored = 'dark'));
+		} catch {}
+		const theme =
+			stored === 'light' || stored === 'dark'
+				? stored
+				: window.matchMedia('(prefers-color-scheme: light)').matches
+					? 'light'
+					: 'dark';
+		document.documentElement.dataset.theme = theme;
+	})();
+</script>

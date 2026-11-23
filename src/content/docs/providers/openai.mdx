@@ -1,0 +1,33 @@
+---
+title: OpenAI
+description: Use your OpenAI API key through OpenPike, on the chat completions and Responses endpoints.
+sidebar:
+  order: 1
+---
+
+import PriceTable from "../../../components/PriceTable.astro";
+
+{/* Key page read 2026-11-16 from https://developers.openai.com/api/docs/quickstart */}
+
+OpenPike sends `openai/...` models to OpenAI's API with your own OpenAI key, on the chat completions and Responses endpoints.
+
+## Your key
+
+Create a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys) and add it on the **Providers** page.
+
+## Calling OpenAI models
+
+- **Endpoints:** `POST /v1/chat/completions` and `POST /v1/responses` (OpenAI's Responses API, used by [Codex CLI](/docs/integrations/codex-cli/)).
+- **Model names:** `openai/` plus OpenAI's model ID, for example `openai/gpt-5.4-mini` or `openai/gpt-4o-mini`.
+- **SDK:** the OpenAI SDK with `base_url` set to `https://api.openpike.dev/v1`. See [OpenAI SDK](/docs/integrations/openai-sdk/).
+
+## Quirks
+
+- **Chat completions and Responses only.** OpenPike does not serve Assistants, embeddings, images or audio endpoints. On `/v1/responses`, `background: true` is rejected, and the other Responses routes (retrieve, cancel, input items) are not served.
+- **Hosted tools.** Web search, file search and code interpreter on `/v1/responses` work, but OpenAI bills them per call on top of tokens, and OpenPike's cost covers tokens only.
+- **Usage on streams.** For streamed chat completions OpenPike sets `stream_options.include_usage`, so the last chunk carries the token counts. Responses streams carry them in the final `response.completed` event.
+- **Long prompts.** Some models charge more for long prompts; the table shows the threshold. OpenAI's Batch, Flex and Priority prices are not applied.
+
+## Prices
+
+<PriceTable provider="openai" />

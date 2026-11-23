@@ -1,0 +1,38 @@
+---
+title: Provider keys
+description: Store your own provider API keys in a workspace, test them, and remove them.
+sidebar:
+  order: 1
+---
+
+A provider key is your own API key for a provider; this page covers adding, testing and removing one, and how OpenPike protects it.
+
+## Add a key
+
+1. Open **Providers** in the workspace and choose the provider.
+2. Paste the key from the provider's console. Add a label if you keep several, for example `team-a`.
+3. Save. The key is encrypted at once and never shown again: the page keeps only its last four characters, so you can tell keys apart.
+
+Only organization owners can add, test or remove provider keys. Members see which providers have keys.
+
+If a workspace has more than one key for the same provider, OpenPike uses the newest one that has not been removed. Each workspace has its own keys; to share a key between workspaces, add it to each.
+
+## Test a key
+
+**Test** asks the provider for its list of models with the stored key. It costs nothing and proves the key works. A provider without a models endpoint cannot be tested this way; send a request through the gateway instead.
+
+## Remove a key
+
+Remove a key on the Providers page. Requests that need that provider then fail with `424 missing_provider_key` until you add another key, and aliases skip targets for that provider. Remove the key at the provider too if it may have leaked.
+
+## How keys are protected
+
+- Each workspace has its own data key. Provider keys are encrypted with it (AES-GCM), and the data key is itself encrypted with a master key that lives only in the gateway's secrets.
+- A provider key is decrypted in memory for the one request that uses it, and never written to logs, error messages or the dashboard.
+- Error bodies from providers are scanned before they reach you, and anything that looks like a key is removed.
+
+See [Security](/docs/resources/security/) for the rest of what OpenPike stores.
+
+## Which providers
+
+The [provider list](/docs/providers/) shows every provider OpenPike can route to, which endpoints each supports, and which have been tested live.

@@ -1,0 +1,39 @@
+---
+title: Cut cost with openpike/auto
+description: Send routine requests to the cheapest model that can do them, with fallbacks, using a cheapest-first alias.
+sidebar:
+  order: 5
+---
+
+import Example from "../../../components/Example.astro";
+
+This recipe creates an alias named `auto` that always tries the cheapest of the models you trust first, so routine work costs less without code changes beyond the model name.
+
+## 1. Choose models you trust for the task
+
+Only list models that do the job well enough; cheapest-first will use the cheapest of them for every request. For summaries, classification or simple code edits, for example:
+
+- `deepseek/deepseek-flash`
+- `google-ai-studio/gemini-3.6-flash`
+- `openai/gpt-5.4-mini`
+
+Each needs a provider key in the workspace, and each must have a price in OpenPike's price table to be ordered by price: unpriced models go last. The [provider pages](/docs/providers/) show which models are priced.
+
+## 2. Create the alias
+
+On **Routing**, create an alias named `auto`, format chat completions, with the models above and the policy `cheapest_first`. On each request, OpenPike orders the targets by input plus output price per million tokens from its current price table, cheapest first.
+
+## 3. Send requests to it
+
+<Example name="aliases/auto" />
+
+The response headers say which model answered. If the cheapest model fails before answering, the next cheapest is tried, as with any alias.
+
+## 4. Check the saving
+
+On **Activity**, group spend by model before and after the switch. Because OpenPike prices every request, you see what each model costs you per day.
+
+## When not to use it
+
+- For hard tasks, cheapest-first sends everything to the cheapest model, which may be the weakest. Keep a separate alias, such as `openpike/smart`, with stronger models and the `ordered` policy, and choose per call.
+- Requests to unpriced models have no cost in OpenPike, so a cheapest-first alias tries them last, not first.

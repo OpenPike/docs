@@ -1,0 +1,28 @@
+---
+// Shows an example from apps/docs/examples in tabs (curl, Python, TypeScript). The tab choice is
+// shared across the docs, so a reader who picks Python keeps seeing Python.
+import { Code, TabItem, Tabs } from "@astrojs/starlight/components";
+import { exampleFiles } from "../lib/examples";
+
+interface Props {
+  name: string;
+  /** Limit to some variants, for example "py,ts". */
+  only?: string;
+}
+const { name, only } = Astro.props;
+const variants = exampleFiles(name, only?.split(","));
+---
+
+{
+  variants.length === 1 ? (
+    <Code code={variants[0]!.code} lang={variants[0]!.lang} title={variants[0]!.file} />
+  ) : (
+    <Tabs syncKey="lang">
+      {variants.map((v) => (
+        <TabItem label={v.label}>
+          <Code code={v.code} lang={v.lang} title={v.file} />
+        </TabItem>
+      ))}
+    </Tabs>
+  )
+}

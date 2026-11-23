@@ -1,0 +1,38 @@
+---
+// Adds "Copy page as Markdown" next to every written page's title. Generated API reference pages
+// have no Markdown source, so they keep the plain title.
+import Default from "@astrojs/starlight/components/PageTitle.astro";
+import { markdownPath } from "../lib/paths";
+
+const { entry } = Astro.locals.starlightRoute;
+const written = entry.filePath?.replaceAll("\\", "/").includes("src/content/docs/") ?? false;
+const md = written ? markdownPath(entry.id) : null;
+---
+
+<div class="op-title-row">
+  <Default />
+  {
+    md ? (
+      <button type="button" class="op-copy-md" data-md={md} aria-live="polite" data-pagefind-ignore>
+        Copy page as Markdown
+      </button>
+    ) : null
+  }
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>(".op-copy-md")) {
+    button.addEventListener("click", async () => {
+      const label = "Copy page as Markdown";
+      try {
+        const res = await fetch(button.dataset.md ?? "");
+        if (!res.ok) throw new Error(String(res.status));
+        await navigator.clipboard.writeText(await res.text());
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Copy failed";
+      }
+      setTimeout(() => (button.textContent = label), 2000);
+    });
+  }
+</script>

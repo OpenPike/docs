@@ -1,0 +1,51 @@
+---
+title: Prompt logging
+description: Store the prompts and responses of a workspace, encrypted, to debug agents. Business plan, off by default.
+sidebar:
+  order: 10
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Example from "../../../components/Example.astro";
+
+Prompt logging stores each request's prompt and response for a workspace, encrypted, so you can see exactly what an agent sent and got back; it is off by default and part of the Business plan.
+
+## Turn it on
+
+An organization owner opens **Settings** in the workspace and checks **Store prompts and responses for this workspace**. It applies to the next request. Each workspace is turned on separately.
+
+## What is stored
+
+- The request body and the response, up to **1 MB each way**. Anything longer is cut at 1 MB and marked as truncated.
+- For streamed responses, both the raw events and the reassembled text.
+- Only requests a provider answered. Requests OpenPike refused (bad key, budget, pause) and provider errors store no body.
+
+Bodies are encrypted with the workspace's own data key (AES-GCM) and kept in object storage, separate from the usage log. They are never written to logs, error messages or alerts.
+
+Storing never slows a response: the body is written after the stream has ended.
+
+## Who can read them
+
+Select a request in **Logs**: the side panel shows the stored request and response.
+
+- **Owners** can always read stored prompts.
+- **Members** can read them only if an owner checks **Members can view stored prompts** in Settings.
+- **Every view is recorded** in the organization's audit log, with who opened which request and when.
+
+## Keep requests out
+
+<Aside type="tip">
+Use these for requests that carry secrets or personal data you do not want stored at all.
+</Aside>
+
+- **One request:** send the header `x-openpike-no-log: 1` (or `true`). OpenPike does not store that request, and does not forward the header to the provider.
+- **A virtual key:** add it to **Never store prompts from these keys** in Settings.
+- **A tag:** add it to **Never store prompts with these tags**, for example `agent=hr-bot`. Tags from the key and from the `x-openpike-tags` header both count.
+
+<Example name="prompt-logging/no-log" />
+
+## How long they are kept
+
+Stored bodies follow the plan's log retention: 90 days on Business. Owners can also delete all of a workspace's stored prompts at once in Settings.
+
+If the organization leaves the Business plan, capture stops immediately, and the bodies stored so far are deleted 7 days later. The owners get an email with the date; moving back to Business before then keeps them.

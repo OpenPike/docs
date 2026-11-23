@@ -1,0 +1,81 @@
+---
+title: Errors
+description: Every error OpenPike returns, its HTTP status, its code and when it happens.
+sidebar:
+  order: 3
+---
+
+OpenPike returns errors in each endpoint's native shape so SDKs parse them; this page lists every error code, its status and its cause.
+
+## Error shapes
+
+Chat completions, Responses, System One and models:
+
+```json
+{
+  "error": {
+    "type": "openpike_error",
+    "code": "budget_exceeded",
+    "message": "Agent \"reviewer\" reached its $50 daily hard limit. Requests resume at midnight UTC (in 4h 20m), or raise the limit at https://app.openpike.dev/w/ws_.../budgets.",
+    "request_id": "req_..."
+  }
+}
+```
+
+Messages, in Anthropic's shape:
+
+```json
+{
+  "type": "error",
+  "error": {
+    "type": "rate_limit_error",
+    "message": "Agent \"reviewer\" reached its $50 daily hard limit. Requests resume at midnight UTC (in 4h 20m), or raise the limit at https://app.openpike.dev/w/ws_.../budgets."
+  }
+}
+```
+
+Every error response has an `x-openpike-request-id` header.
+
+## Error codes
+
+| HTTP | Code | When |
+| --- | --- | --- |
+| `400` | `invalid_request` | The body is not valid JSON, or not a JSON object, or a run header is malformed (see [Run budgets](/docs/features/run-budgets/)) |
+| `400` | `invalid_tags` | `x-openpike-tags` or the key's tags break the limits (10 pairs, 64 characters) |
+| `400` | `invalid_model` | No `model`, not in `provider/model` form, an unknown provider, or an unknown alias |
+| `400` | `unsupported_format` | The provider does not serve this endpoint's format, or the alias was made for another endpoint |
+| `400` | `unsupported_parameter` | On `/v1/responses`: `"background": true`, which OpenPike does not support yet because a background response carries no usage |
+| `401` | `invalid_virtual_key` | Missing, unknown or revoked virtual key, or a key disabled because the plan allows fewer keys |
+| `403` | `provider_disabled` | The provider is in the catalog but not enabled yet |
+| `424` | `missing_provider_key` | The workspace has no key for that provider |
+| `429` | `budget_exceeded` | A hard budget for the workspace, the key or one of the request's tags is used up for this period. `retry-after` is the seconds until the period resets |
+| `429` | `loop_detected` | Loop detection paused the key or tag. `retry-after` is the seconds left on the pause |
+| `429` | `scope_paused` | The agent or key was paused from the dashboard, until it is resumed |
+| `429` | `run_limit_exceeded` | The run in `x-openpike-run` reached its spend, request or time cap. Every later request with that run ID is refused until the run has been idle for its idle time. No `retry-after` |
+| `429` | `plan_limit_reached` | The organization used its plan's requests for this calendar month (UTC), in block mode. `retry-after` is the seconds until the month resets |
+| `429` | `plan_limit_throttled` | Over the plan's monthly requests in throttle mode: more than 10 requests this minute for the organization. `retry-after` is 60 |
+| `429` | `too_many_auth_failures` | More than 20 invalid keys from your IP address this minute |
+| `502` | `upstream_unreachable` | The provider could not be reached |
+| varies | `upstream_error` | The provider returned an error. Its status and message are passed through, with anything that looks like a key removed |
+| `500` | `internal_error` | An unexpected error in OpenPike. Retry, and quote the request ID to support if it persists |
+
+## On `/v1/messages`
+
+The `type` in Anthropic's shape follows the status:
+
+| Status | `error.type` |
+| --- | --- |
+| `400`, `424` | `invalid_request_error` |
+| `401` | `authentication_error` |
+| `403` | `permission_error` |
+| `404` | `not_found_error` |
+| `429` | `rate_limit_error` |
+| others | `api_error` |
+
+Provider errors keep the provider's own `error.type`. To tell an OpenPike `429` from Anthropic's rate limit, check for the `x-openpike-provider` header: OpenPike's own blocks do not have it.
+
+## Retrying
+
+- `budget_exceeded`, `loop_detected`, `plan_limit_reached`, `scope_paused` and `run_limit_exceeded` do not clear by retrying a few seconds later. SDKs retry `429` by default; lower their retry count for agents, or handle these codes yourself.
+- `plan_limit_throttled` allows 10 requests a minute: retry after `retry-after`.
+- `upstream_error` with `429` or `5xx`, and `upstream_unreachable`, are worth retrying, or use an [alias](/docs/features/aliases-and-fallbacks/) so OpenPike falls back for you.

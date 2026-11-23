@@ -1,0 +1,35 @@
+---
+title: Providers
+description: Every provider OpenPike can route to, which endpoints each supports, which are tested live, and which have prices.
+sidebar:
+  order: 0
+  label: All providers
+---
+
+import ProviderTable from "../../../components/ProviderTable.astro";
+
+This page lists the providers OpenPike can send your requests to, generated from the same catalog and price table the gateway uses.
+
+To use one, add your key for it on the **Providers** page of a workspace, then name models `<slug>/<model id>`. See [Model names](/docs/features/model-names/).
+
+## Status
+
+- **Tested** providers passed OpenPike's live test against the real provider on the date shown.
+- **Available** providers are enabled from the provider's documented API and should work, but have not been tested live by OpenPike yet. If you hit a problem with one, tell [support@openpike.dev](mailto:support@openpike.dev).
+- **Not yet available** providers are planned: they stay off until their API address is confirmed with a live request, and some need a different sign-in than an API key (Google Vertex AI, Amazon Bedrock, Azure). Providers that do not serve chat models, such as speech, image, video and embeddings APIs, are not listed.
+
+**Prices** shows how many of the provider's models have a known price. Requests to unpriced models are tracked and count toward plan limits, but show no cost and add nothing to budgets. See [Usage and cost](/docs/features/usage-and-cost/).
+
+Prices are open: see or fix them on GitHub in [OpenPike/models](https://github.com/OpenPike/models), which publishes this catalog and price table with a schema for each.
+
+## Providers you can use
+
+<ProviderTable status="tested,available" />
+
+**Unpriced** means OpenPike has no price for any of that provider's models yet. Requests to them work and count toward your plan's request limit, but their cost shows as unknown (no dollar amount in Logs and Usage), and they add nothing to budgets until prices are added.
+
+## Not yet available
+
+These providers are in OpenPike's catalog but cannot receive requests yet. Requests to them get `403 provider_disabled`.
+
+<ProviderTable status="unavailable" />

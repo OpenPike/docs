@@ -1,0 +1,27 @@
+---
+// A provider's prices in USD per 1M tokens, generated from packages/providers/prices.json.
+import { priceSource, priceTable } from "../lib/tables";
+import DataTable from "./DataTable.astro";
+
+interface Props {
+  provider: string;
+}
+const { provider } = Astro.props;
+const table = priceTable(provider);
+const source = priceSource(provider);
+---
+
+{
+  table.rows.length ? (
+    <>
+      <DataTable table={table} />
+      {source ? (
+        <p>
+          USD per 1M tokens, from <a href={source}>{source}</a>.
+        </p>
+      ) : null}
+    </>
+  ) : (
+    <p>No prices are recorded for this provider yet, so its requests show no cost. They still count toward your plan's monthly requests.</p>
+  )
+}

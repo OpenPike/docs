@@ -1,0 +1,39 @@
+---
+title: Cline
+description: Use OpenPike in Cline with its OpenAI Compatible provider.
+sidebar:
+  order: 5
+---
+
+{/*
+  Source, read 2026-11-16: https://docs.cline.bot/provider-config/openai-compatible
+*/}
+
+Cline's **OpenAI Compatible** provider takes any base URL, key and model ID, so you can point it at OpenPike's chat completions endpoint.
+
+| | |
+| --- | --- |
+| OpenPike endpoint | `POST /v1/chat/completions` |
+| Base URL | `https://api.openpike.dev/v1` |
+| Key | A virtual key, in the API Key field |
+| Models | One `provider/model` name in the Model ID field |
+| Tags | On the virtual key (Cline's provider docs list no header field) |
+
+## 1. Create a key for Cline
+
+On the **Keys** page, create a virtual key with the tag `agent=cline`. Cline's OpenAI Compatible settings have no field for extra headers, so the tag on the key is what attributes its spend.
+
+## 2. Configure Cline
+
+1. Open Cline's settings with the gear icon.
+2. Set **API Provider** to **OpenAI Compatible**.
+3. **Base URL:** `https://api.openpike.dev/v1`
+4. **API Key:** your virtual key.
+5. **Model ID:** an OpenPike model name such as `deepseek/deepseek-flash`, or an alias such as `openpike/auto` for fallbacks.
+6. Optionally fill in **Model Configuration**: context window and max output tokens for the model you chose, and its input and output prices if you want Cline's own cost estimate. OpenPike computes cost independently.
+
+## 3. Check it works
+
+Give Cline a small task, then open **Logs** in OpenPike: its requests appear under the agent `cline`.
+
+Claude models are not available through this provider, because OpenPike serves them in the Anthropic format only.

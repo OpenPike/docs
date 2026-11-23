@@ -1,0 +1,51 @@
+---
+title: Security
+description: How OpenPike protects provider keys, virtual keys and prompt logs, what it stores, and how to report a vulnerability.
+sidebar:
+  order: 2
+---
+
+This page explains how OpenPike protects the keys and data you give it, what it stores, and how to report a security problem.
+
+## Reporting a vulnerability
+
+Email [security@openpike.dev](mailto:security@openpike.dev) with the details and steps to reproduce. Please give us time to fix the issue before sharing it. The same address is listed in [openpike.dev/.well-known/security.txt](https://openpike.dev/.well-known/security.txt).
+
+## Provider keys
+
+- Each workspace has its own random 256-bit data key. Provider keys are encrypted with it using AES-GCM, with a fresh random IV each time.
+- The workspace data key is itself encrypted with a master key that exists only in the gateway's and dashboard's secrets, never in the database or the code.
+- A provider key is decrypted in memory for the one request that uses it. It is never written to logs, error messages, alerts or the dashboard, which shows only its last four characters.
+- Provider error messages are scanned before they reach you, and anything that looks like a key is removed.
+- Slack webhook URLs are encrypted the same way.
+
+## Virtual keys
+
+- Virtual keys are stored only as SHA-256 hashes. The full key is shown once, when it is created.
+- A revoked key stops working on its next request, in every location OpenPike runs.
+- Repeated requests with invalid keys from one IP address are refused for the rest of the minute.
+
+## Prompt logs
+
+Prompt logging is off by default and available only on the Business plan, per workspace, turned on by an organization owner.
+
+- Bodies are encrypted with the workspace's data key before they are stored, in object storage separate from the database.
+- Only owners, and members an owner allows, can read them, and every read is recorded in the audit log.
+- A request with `x-openpike-no-log: 1`, or from an excluded key or tag, is never stored.
+
+See [Prompt logging](/docs/features/prompt-logging/).
+
+## What OpenPike stores
+
+- **Account data:** members' email addresses, organizations, workspaces and roles. Sign-in links are stored hashed, work once and expire after 15 minutes; sessions use a secure, HTTP-only cookie. GitHub sign-in uses OAuth with `state` and PKCE and asks only for `read:user` and `user:email`; OpenPike keeps the GitHub user ID and username, and discards the GitHub access token right after reading your profile.
+- **Request metadata:** for every request, the model, provider, tokens, cost, latency, status, virtual key and tags. Not the prompt or the response.
+- **Keys and settings:** provider keys and Slack webhook URLs (encrypted), virtual key hashes, budgets, aliases, alert email addresses.
+- **Prompt logs:** only with prompt logging on, encrypted, as above.
+- **Billing:** the plan, subscription status and Stripe customer IDs. Card details are handled by Stripe, never by OpenPike.
+- **Audit log:** who changed what in the organization, never secret values.
+
+Request metadata and prompt logs are kept for the plan's log retention (3 days on Free, 30 on Team, 90 on Business) and then deleted automatically. The [privacy policy](https://openpike.dev/privacy/) has the full list, the service providers OpenPike uses and how to ask for deletion.
+
+## Infrastructure
+
+OpenPike runs on Cloudflare Workers, with Cloudflare's database, Durable Objects and object storage. Requests to providers go over HTTPS directly from the gateway with your provider key. Payments run through Stripe.

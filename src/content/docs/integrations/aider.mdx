@@ -1,0 +1,65 @@
+---
+title: Aider
+description: Run Aider against OpenPike with two environment variables and the openai/ model prefix.
+sidebar:
+  order: 6
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+{/*
+  Source, read 2026-11-16: https://aider.chat/docs/llms/openai-compat.html
+*/}
+
+Aider can use any OpenAI-compatible endpoint through two environment variables, so it runs against OpenPike's chat completions endpoint unchanged.
+
+| | |
+| --- | --- |
+| OpenPike endpoint | `POST /v1/chat/completions` |
+| Base URL | `OPENAI_API_BASE=https://api.openpike.dev/v1` |
+| Key | `OPENAI_API_KEY`, a virtual key |
+| Models | `openai/` followed by the OpenPike name |
+| Tags | On the virtual key |
+
+## 1. Create a key for Aider
+
+On the **Keys** page, create a virtual key with the tag `agent=aider`. The tag on the key attributes Aider's spend.
+
+## 2. Configure Aider
+
+<Tabs syncKey="shell">
+<TabItem label="bash">
+
+```bash
+export OPENAI_API_BASE=https://api.openpike.dev/v1
+export OPENAI_API_KEY=opk_live_...
+```
+
+</TabItem>
+<TabItem label="PowerShell">
+
+```powershell
+$env:OPENAI_API_BASE = "https://api.openpike.dev/v1"
+$env:OPENAI_API_KEY = "opk_live_..."
+```
+
+</TabItem>
+</Tabs>
+
+The PowerShell tab sets the variables for that window only. To keep them for new windows on Windows, run `setx OPENAI_API_BASE https://api.openpike.dev/v1` and `setx OPENAI_API_KEY opk_live_...`, then open a new shell.
+
+## 3. Run it
+
+Aider's docs say to prefix the model name with `openai/` for an OpenAI-compatible endpoint; the `openai/` prefix tells Aider which kind of endpoint it is talking to. Put the full OpenPike name after it:
+
+```bash
+aider --model openai/deepseek/deepseek-flash
+```
+
+Aider shows a warning for models it is not familiar with, which includes every OpenPike name, because it has no context or cost settings for them. OpenPike has not run Aider itself; if something fails, the request in OpenPike's **Logs** shows why.
+
+## 4. Check it works
+
+Ask Aider for a small change, then open **Logs** in OpenPike: the requests appear under the agent `aider`.
+
+Claude models are not available this way, because OpenPike serves them in the Anthropic format only.

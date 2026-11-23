@@ -1,0 +1,31 @@
+---
+title: OpenRouter
+description: Use your OpenRouter key behind OpenPike as one more provider, for models you have no direct key for.
+sidebar:
+  order: 6
+---
+
+import PriceTable from "../../../components/PriceTable.astro";
+
+{/* Read 2026-11-16 from https://openrouter.ai/docs/api-reference/authentication */}
+
+OpenPike can send `openrouter/...` models to OpenRouter with your own OpenRouter key, so you get OpenPike's budgets, loop detection and reporting on models you reach through OpenRouter.
+
+## Your key
+
+Create a key at [openrouter.ai/keys](https://openrouter.ai/keys) and add it on the **Providers** page as OpenRouter.
+
+## Calling models through OpenRouter
+
+- **Endpoints:** `POST /v1/chat/completions`, `POST /v1/responses` (OpenRouter's Responses API, in beta and stateless: it keeps nothing between requests, so `previous_response_id` does not work), and `POST /v1/systemone` for Jev.
+- **Model names:** `openrouter/` plus OpenRouter's own model ID. Everything after the first slash goes to OpenRouter unchanged, so `openrouter/openai/gpt-5` reaches OpenRouter as `openai/gpt-5`.
+
+## Quirks
+
+- **Cost comes from OpenRouter's list.** OpenPike prices OpenRouter's models from OpenRouter's public models list, so requests through it show cost and count toward [budgets](/docs/features/budgets/). OpenRouter's BYOK fee is billed by OpenRouter and is not in OpenPike's cost. Use OpenRouter's own [per-key credit limits](https://openrouter.ai/docs/guides/best-practices/capping-shared-agent-keys) as well.
+- **Fields OpenRouter understands work here.** OpenPike passes unknown body fields through, so OpenRouter's own fields, such as `provider` preferences, reach OpenRouter when you call an `openrouter/...` model.
+- Moving away from OpenRouter instead? See [Migrate from OpenRouter](/docs/migrate-from-openrouter/).
+
+## Prices
+
+<PriceTable provider="openrouter" />

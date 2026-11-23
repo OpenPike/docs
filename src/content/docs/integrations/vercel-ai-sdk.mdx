@@ -1,0 +1,48 @@
+---
+title: Vercel AI SDK
+description: Use OpenPike from the Vercel AI SDK with the OpenAI and Anthropic providers and a custom base URL.
+sidebar:
+  order: 12
+---
+
+import Example from "../../../components/Example.astro";
+
+{/*
+  Sources, read 2026-11-16:
+  https://ai-sdk.dev/providers/ai-sdk-providers/openai
+  https://ai-sdk.dev/providers/ai-sdk-providers/anthropic
+*/}
+
+The AI SDK's OpenAI and Anthropic providers take a custom base URL, key and headers, so you create one provider instance per OpenPike format and use OpenPike model names.
+
+| | `@ai-sdk/openai` | `@ai-sdk/anthropic` |
+| --- | --- | --- |
+| Create | `createOpenAI({...})` | `createAnthropic({...})` |
+| Base URL | `baseURL: "https://api.openpike.dev/v1"` | `baseURL: "https://api.openpike.dev/v1"` |
+| Key | `apiKey:` a virtual key | `apiKey:` a virtual key |
+| Tags | `headers: { "x-openpike-tags": ... }` | `headers: { "x-openpike-tags": ... }` |
+| Models | `provider.chat("deepseek/deepseek-flash")` | `provider("anthropic/claude-haiku-5-5")` |
+
+Note the Anthropic provider's base URL includes `/v1`, unlike Anthropic's own SDK: the AI SDK's default is `https://api.anthropic.com/v1`.
+
+## Install
+
+```bash
+npm install ai @ai-sdk/openai @ai-sdk/anthropic
+```
+
+## Example
+
+<Example name="vercel-ai-sdk/generate" />
+
+## Use `.chat()` with the OpenAI provider
+
+The OpenAI provider's default, `openai("model")`, calls OpenAI's Responses API. OpenPike serves that endpoint only for providers that serve it themselves (OpenAI, xAI, Groq and OpenRouter), because it does not translate between formats, so `openai("openai/gpt-5.4-mini")` works but `openai("deepseek/deepseek-flash")` does not. Use `.chat("model")`, which the AI SDK's docs recommend when a base URL only supports Chat Completions, to reach every provider.
+
+## A run ID per task
+
+To cap one agent run with a [run budget](/docs/features/run-budgets/), pass the run in `headers` on the call, for example `generateText({ model, prompt, headers: { "x-openpike-run": task.id } })`, or create the provider per task with it in `headers`. Set `maxRetries: 0` so a stopped run (`429 run_limit_exceeded`) is not retried.
+
+## What works
+
+`generateText`, `streamText`, `generateObject`, `streamObject` and tool calls, with any model on the matching endpoint. Embeddings and images do not work through OpenPike.

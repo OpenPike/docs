@@ -1,0 +1,42 @@
+---
+title: A cheap fallback chain
+description: Keep a service up when a provider fails by listing a few models in an alias, cheapest first.
+sidebar:
+  order: 4
+---
+
+This recipe keeps a service answering when its main provider is down or rate-limited, by giving it an alias with a few models from different providers, tried in order.
+
+## 1. Pick the models
+
+Choose models that are good enough for the task and come from different providers, so one outage does not take out the whole chain. For a chat completions service, for example:
+
+1. `deepseek/deepseek-flash`
+2. `google-ai-studio/gemini-3.6-flash`
+3. `openai/gpt-5.4-mini`
+
+All targets of one alias must work on the same endpoint. Add a provider key for each provider on the **Providers** page; a target without a key is skipped.
+
+## 2. Create the alias
+
+On **Routing**, create an alias:
+
+- **Name:** `fast`
+- **Format:** chat completions
+- **Targets:** the three models above, in that order
+- **Policy:** `ordered`
+
+## 3. Use it
+
+Change the service's model to `openpike/fast`. Nothing else changes.
+
+OpenPike calls DeepSeek first. If DeepSeek answers with a `429`, a `5xx` or a network error before sending anything, OpenPike calls Gemini, then OpenAI, up to 3 attempts in all. A response that has started streaming is never switched. A provider that has failed 5 times in a row is moved to the back of the line for 30 seconds, so a dead provider does not slow every request down.
+
+## 4. Watch it
+
+Each response carries `x-openpike-model`, the model that answered, and `x-openpike-attempts`. In **Logs**, a request served by a fallback shows the served model and the attempt count. Many fallbacks to the second model mean the first one is struggling.
+
+## Variations
+
+- **Cheapest first:** set the policy to `cheapest_first` and OpenPike orders the targets by price instead of your order. See [Cut cost with openpike/auto](/docs/recipes/cut-cost-with-auto/).
+- **Claude models:** create a second alias for the messages format with Anthropic and DeepSeek targets.

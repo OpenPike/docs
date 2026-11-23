@@ -1,0 +1,55 @@
+---
+title: Loop detection and pausing
+description: Pause an agent or key automatically when its requests or spend per minute spike, or pause an agent yourself.
+sidebar:
+  order: 6
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Loop detection pauses a virtual key or a tag when its requests or spend per minute cross a limit you set, which stops an agent stuck in a loop within a minute instead of at the end of the day.
+
+<Aside type="note">
+Loop detection is part of the Team and Business plans. On Free, limits you set earlier stay saved but inactive.
+</Aside>
+
+## Set loop limits
+
+Loop limits live on a budget: open **Budgets**, choose the scope, and fill in one or both:
+
+| Limit | Meaning |
+| --- | --- |
+| Requests per minute | Pause when more requests than this arrive within 60 seconds |
+| Spend per minute | Pause when the cost of the last 60 seconds goes over this amount |
+| Pause for | How long the pause lasts. Default 300 seconds (5 minutes), at most 7 days |
+
+The minute is a sliding 60-second window, not a clock minute.
+
+## What gets paused
+
+- On a **tag** budget, such as `agent=reviewer`, the tag is paused: every request carrying it is refused, from any key.
+- On a **virtual key** budget, that key is paused.
+- On the **workspace** budget, each key is measured on its own and only the key that crossed the limit is paused. One busy agent does not stop the others.
+
+## What a paused request gets
+
+```text
+HTTP/1.1 429 Too Many Requests
+retry-after: 287
+
+{"error": {"type": "openpike_error", "code": "loop_detected", "message": "Loop detection paused agent \"reviewer\": it sent more than 120 requests in a minute. Requests resume in 5m, or change the loop limits at https://app.openpike.dev/w/ws_.../budgets.", "request_id": "req_..."}}
+```
+
+`retry-after` is the seconds left on the pause. The request rate is checked before the request, so the request that would cross the limit is refused. Spend per minute is only known after a response, so the request that crosses it completes and the pause starts with the next one.
+
+When a loop pause starts, OpenPike sends an alert to the workspace's [alert channels](/docs/features/alerts/).
+
+## Pause an agent yourself
+
+On the **Agents** page, select **Pause** next to an agent. Its next request, and every one after, gets `429 scope_paused` until you select **Resume**. A manual pause has no end time. **Resume** also ends a loop pause early.
+
+To stop one virtual key at once, revoke it on the **Keys** page. A key paused by loop detection resumes by itself when its pause ends.
+
+## Choosing limits
+
+Start from what the agent normally does. If a coding agent makes 10 to 20 requests a minute at its busiest, a limit of 60 requests per minute catches a loop without getting in the way. A spend per minute limit catches loops with large contexts, where a few requests a minute cost a lot. See [Stop a runaway agent](/docs/recipes/stop-a-runaway-agent/).

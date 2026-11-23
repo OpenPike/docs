@@ -1,0 +1,57 @@
+---
+title: Overview
+description: What OpenPike is, how a request flows through it, and where to start.
+sidebar:
+  order: 1
+head:
+  - tag: script
+    attrs:
+      src: /docs/legacy-anchors.js
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+import RequestFlow from "../../components/RequestFlow.astro";
+
+OpenPike puts budgets, loop detection, fallbacks and spend reporting in front of the LLM providers you already pay, so a runaway coding agent cannot burn your bill.
+
+## Bring your own key
+
+You keep your accounts with OpenAI, Anthropic, Google, DeepSeek and the others. You store those provider keys in OpenPike once, and your agents and apps call OpenPike with an OpenPike **virtual key** instead. OpenPike forwards each request with your provider key, so the provider bills you directly at its own prices.
+
+OpenPike never resells tokens and never holds money for inference. You pay a flat plan per organization, and the Free plan costs nothing.
+
+## How a request flows
+
+<figure class="op-figure">
+  <RequestFlow />
+  <figcaption>One request through OpenPike. The checks happen before anything reaches the provider.</figcaption>
+</figure>
+
+1. Your agent or app sends a normal OpenAI or Anthropic request to `https://api.openpike.dev`, with an OpenPike virtual key instead of a provider key.
+2. OpenPike checks the key, then the budgets, pauses and loop limits that apply to the key, its tags and the workspace, and the plan's monthly request limit. A request that would break a limit gets a `429` and never reaches the provider.
+3. OpenPike picks the provider from the model name (`deepseek/deepseek-flash` goes to DeepSeek) and sends the request with your provider key. The body passes through as you sent it, unknown fields included; the only addition is a request for token usage on streamed chat requests (`stream_options.include_usage`), which is how OpenPike counts tokens without reading them itself.
+4. The response streams straight back. Nothing is buffered.
+5. When the response ends, OpenPike records the tokens and the cost, which you see in the dashboard within seconds.
+
+Request and response bodies are not stored, unless an owner turns on [prompt logging](/docs/features/prompt-logging/) for a workspace on the Business plan.
+
+## What you get
+
+- **Budgets** per workspace, virtual key or tag, by hour, day or month, with soft limits that alert and hard limits that block. See [Budgets](/docs/features/budgets/).
+- **Loop detection** that pauses a key or an agent whose requests or spend per minute spike. See [Loop detection and pausing](/docs/features/loop-detection/).
+- **Fallbacks and automatic routing** with aliases such as `openpike/auto`, which only need a model name, so they work in tools that let you set nothing else. See [Aliases and fallbacks](/docs/features/aliases-and-fallbacks/).
+- **Spend reporting** by agent, key, model and provider, from the providers' own token counts. See [Usage and cost](/docs/features/usage-and-cost/).
+- **Alerts** by email and Slack. See [Alerts](/docs/features/alerts/).
+
+## Start here
+
+<CardGrid>
+  <LinkCard title="Quickstart" href="/docs/quickstart/" description="Add a provider key, create a virtual key and send a first request." />
+  <LinkCard title="Concepts" href="/docs/concepts/" description="Organizations, workspaces, keys, tags and plans in one page." />
+  <LinkCard title="Claude Code" href="/docs/integrations/claude-code/" description="Put a budget and loop detection on Claude Code." />
+  <LinkCard title="Migrate from OpenRouter" href="/docs/migrate-from-openrouter/" description="What changes, side by side, and a prompt for your coding agent." />
+</CardGrid>
+
+## Docs are open source
+
+These docs are published at [github.com/OpenPike/docs](https://github.com/OpenPike/docs). Every page has an **Edit this page** link, so you can fix a mistake or improve an explanation with a pull request.

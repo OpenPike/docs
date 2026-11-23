@@ -1,0 +1,46 @@
+---
+title: Stop a runaway agent
+description: Combine a loop limit, a hard budget and alerts so an agent stuck in a loop is stopped within a minute.
+sidebar:
+  order: 1
+---
+
+This recipe sets up three layers that stop an agent stuck in a loop: a loop limit that pauses it within a minute, a hard budget that caps the day, and alerts so you hear about it.
+
+Loop detection needs the Team or Business plan. On Free, use steps 1, 3 and 4.
+
+## 1. Give the agent its own tag
+
+Create a virtual key for the agent with the tag `agent=<name>`, for example `agent=pr-reviewer`, or send `x-openpike-tags: agent=pr-reviewer` on its requests. Everything below targets that tag, so one agent can be stopped without touching the others.
+
+## 2. Set a loop limit
+
+On **Budgets**, add a budget with scope **Tag** `agent=pr-reviewer` and fill in the loop fields:
+
+| Field | Starting point |
+| --- | --- |
+| Requests per minute | About three times the agent's normal busiest minute, for example `60` |
+| Spend per minute | About three times its normal busiest minute, for example `$0.50` |
+| Pause for | `300` seconds (5 minutes) |
+
+Look at the agent's requests in **Logs** for a typical busy minute and adjust. A loop usually shows as many similar requests in a few seconds, or a few very large ones; the request limit catches the first, the spend limit the second.
+
+## 3. Cap the day
+
+On the same budget, set the period to **Day** and a **hard limit**, for example `$20`, with a **soft limit** at `$15`. If the agent keeps running all day below the loop limits, the hard limit stops it at $20, and the soft limit warns you at $15.
+
+## Cap each run
+
+A slow loop, one request every 20 seconds, stays under any loop limit and can run all day. If the agent works in tasks, send `x-openpike-run: <task ID>` on its requests and add **Run limits** to the same budget, for example `$5` and `200` requests per run. A run that reaches either is refused with `429 run_limit_exceeded`, and the agent's next task starts fresh. See [Run budgets](/docs/features/run-budgets/).
+
+## 4. Get told
+
+On **Alerts**, add your email or a Slack channel and select **Send test**. A loop pause, the soft limit, the hard limit and a stopped run each send an alert.
+
+## What the agent sees
+
+While paused or blocked, the agent's requests get a `429` with a `retry-after` header: `loop_detected` for a loop pause, `budget_exceeded` for the hard limit. Most SDKs retry `429` a few times and then fail, which stops the agent. To resume early, select **Resume** next to the agent on the **Agents** page, or raise the limit.
+
+## Also stop it by hand
+
+On the **Agents** page, **Pause** stops an agent on its next request until you resume it. To cut off one key for good, revoke it on the **Keys** page.

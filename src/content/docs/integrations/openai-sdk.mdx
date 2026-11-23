@@ -1,0 +1,81 @@
+---
+title: OpenAI SDK
+description: Use OpenAI's Python and TypeScript SDKs with OpenPike by changing the base URL and key.
+sidebar:
+  order: 10
+---
+
+import Example from "../../../components/Example.astro";
+
+{/* Sources, read 2026-11-16 and 2026-11-17: https://developers.openai.com/api/docs/quickstart, https://platform.openai.com/docs/api-reference/responses */}
+
+OpenAI's official SDKs work with OpenPike for every model on the chat completions endpoint, and for OpenAI, xAI, Groq and OpenRouter models on the Responses endpoint: set the base URL and the key, and keep the rest of your code.
+
+| | Python (`openai`) | TypeScript (`openai`) |
+| --- | --- | --- |
+| Base URL | `base_url="https://api.openpike.dev/v1"` | `baseURL: "https://api.openpike.dev/v1"` |
+| Key | `api_key=` a virtual key | `apiKey:` a virtual key |
+| Tags on every request | `default_headers={"x-openpike-tags": ...}` | `defaultHeaders: { "x-openpike-tags": ... }` |
+| Tags on one request | `extra_headers={...}` | second argument `{ headers: {...} }` |
+
+## Install
+
+```bash
+pip install openai        # Python
+npm install openai        # TypeScript
+```
+
+## Streaming
+
+Streaming works as with OpenAI: OpenPike passes the events through as they arrive and adds the token counts to the last chunk.
+
+<Example name="openai-sdk/stream" />
+
+## Responses API
+
+`client.responses.create` goes to OpenPike's `/v1/responses`, which passes the request to the provider unchanged. It works with models from OpenAI, xAI, Groq and OpenRouter: the providers whose entries in `client.models.list()` list the `responses` format. OpenPike does not translate Responses into other formats, so Claude, DeepSeek and the other chat completions providers are not served here: use `client.chat.completions.create` for them.
+
+<Example name="openai-sdk/responses" />
+
+Streaming (`stream=True`), tools, reasoning and structured outputs pass through as with OpenAI, and the token counts come from the final `response.completed` event. Three things differ from calling OpenAI directly:
+
+- `background=True` is rejected with `400 unsupported_parameter`, because a background response carries no token counts for OpenPike to record.
+- With an [alias](/docs/features/aliases-and-fallbacks/#responses-with-stored-state), a request that sets `previous_response_id` or `conversation` goes only to the alias's first target, with no fallback.
+- Hosted tools (web search, file search, code interpreter) work, but their per-call fees are not in OpenPike's cost. See [Usage and cost](/docs/features/usage-and-cost/#hosted-tools-are-not-included).
+
+## A run ID per task
+
+A [run budget](/docs/features/run-budgets/) caps one agent run's spend, requests and time. Create a client per task with the run in its default headers, or send it per request:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.openpike.dev/v1",
+    api_key=virtual_key,
+    default_headers={"x-openpike-run": task.id, "x-openpike-run-label": task.title, "x-openpike-run-max-usd": "5"},
+    max_retries=0,  # a stopped run answers 429 run_limit_exceeded; retrying does not help
+)
+```
+
+```ts
+const client = new OpenAI({
+  baseURL: "https://api.openpike.dev/v1",
+  apiKey: virtualKey,
+  defaultHeaders: { "x-openpike-run": task.id, "x-openpike-run-label": task.title },
+  maxRetries: 0,
+});
+```
+
+In Python, `client.with_options(default_headers={...})` gives an existing client a run without building a new one. For one request, pass `extra_headers={...}` in Python or `{ headers: {...} }` as the second argument in TypeScript.
+
+## Reading OpenPike's headers
+
+Use the SDK's raw response to read `x-openpike-request-id`, `x-openpike-model` and `x-openpike-attempts`. See [Aliases and fallbacks](/docs/features/aliases-and-fallbacks/) for an example.
+
+## What works and what does not
+
+- **Works:** `client.chat.completions.create` with any model on `/v1/chat/completions`, streaming, tools and function calling, JSON mode and structured outputs where the provider supports them, `client.responses.create` with OpenAI, xAI, Groq and OpenRouter models, and `client.models.list()`. OpenPike passes request fields through untouched.
+- **Does not work:** `client.responses.retrieve`, `.cancel`, `.delete` and `.input_items`, background responses, embeddings, images, audio, files, batches and assistants. OpenPike does not serve those endpoints.
+- **Errors** come back in OpenAI's shape, so the SDK raises its usual exceptions: `AuthenticationError` for `401`, `RateLimitError` for OpenPike's `429` blocks. Check the error `code` to tell a budget block from a provider rate limit; see [Errors](/docs/api/errors/).
+- **Retries:** the SDK retries `429` responses by default. A budget or plan block will not clear in seconds, so lower `max_retries` for agents that should stop at once.

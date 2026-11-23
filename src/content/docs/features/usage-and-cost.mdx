@@ -1,0 +1,67 @@
+---
+title: Usage and cost
+description: What OpenPike records for each request, how it computes cost, and where you see it.
+sidebar:
+  order: 9
+---
+
+OpenPike records the tokens and cost of every request so you can see spend by agent, key, model and provider; this page explains where the numbers come from and when there is no cost.
+
+## What is recorded
+
+For each request: the time, the requested and served model, the provider, the virtual key and tags, the HTTP status, input, cached input, cache write, output and reasoning tokens where the provider reports them, the cost, time to first token, total latency and OpenPike's own overhead. Prompts and responses are not part of it; they are only stored by [prompt logging](/docs/features/prompt-logging/), which is off unless an owner turns it on.
+
+You see it in:
+
+- **Logs:** every request, filterable by time, agent, key, model, provider, status and tag, with a live tail. Select a row for all its details.
+- **Activity:** spend over time, grouped by model, agent or provider, with totals and the top agents and keys. When an organization has several workspaces, **All workspaces** shows them together.
+- **Agents** and **Keys:** spend this month per `agent` tag and per virtual key.
+
+Logs are kept for the plan's log retention: 3 days on Free, 30 on Team, 90 on Business. Older rows are deleted every night.
+
+## Where the token counts come from
+
+OpenPike never counts tokens itself. It reads the provider's own usage data from the response: the `usage` object of an OpenAI-format response, the `message_start` and `message_delta` events of an Anthropic stream, and the final `response.completed` (or `response.incomplete`, `response.failed`) event of a Responses stream. For streamed chat completions it asks OpenAI-compatible providers to include usage in the last chunk (`stream_options.include_usage`), except providers known to reject that option.
+
+## How cost is computed
+
+Cost is the provider's token counts times the prices in OpenPike's price table, in US dollars:
+
+- **Input tokens** that were not read from or written to a prompt cache, at the input price.
+- **Cached input** (cache reads), at the cached input price.
+- **Cache writes**, at the cache write price. Anthropic's 1-hour cache writes use the 1-hour price when the response reports them separately.
+- **Output tokens**, including reasoning tokens where the provider counts them as output, at the output price.
+
+Some providers bill more or less depending on a **service tier** chosen per request: OpenAI's `priority` (costs more) and `flex` (costs less), xAI's `priority` (2x standard rates) and Fireworks' `priority`. OpenPike reads the tier from the **response** (`service_tier`, including the last chunk of a stream), because a provider can downgrade a request: a request for `priority` that came back as `default` is costed at the standard rate. It falls back to the request's `service_tier` only when the response does not report one. Logs shows the tier beside the cost. If a response reports a tier the price table does not have (for example `scale`), the request is costed at the standard rate and marked **Estimated**, and the tier is listed in the daily digest of unpriced models. A model with no priority or flex price (a model OpenAI does not offer them for, say) is treated the same way.
+
+Some models have **long-context prices**: when the whole prompt is above a threshold, all its tokens use the higher rates. Some prices have **dated changes** announced by the provider: each request is priced at the rates in force when it started, so a change on the 1st of the month applies to requests from 00:00 UTC that day.
+
+Prices come only from each provider's own pricing page or published price data, with the source and the date it was read. For OpenRouter, the seller is OpenRouter itself, so its prices come from OpenRouter's public models list. Each [provider page](/docs/providers/) shows its table.
+
+## Estimated cost
+
+When a model has no price of its own, OpenPike estimates its cost, so [budgets](/docs/features/budgets/) and [loop limits](/docs/features/loop-detection/) still count it:
+
+1. the price of the model the provider's response names, which covers aliases such as `mistral/mistral-large-latest` (the response names the dated model it served);
+2. otherwise OpenRouter's listed price for a model with the same name, as a guide.
+
+Logs marks those requests **Estimated**. When the model gets a price, new requests use it. Activity and Budgets show a warning when requests in the period have an estimated or unknown cost, with a link to those requests in Logs (filter **Cost**).
+
+## When there is no cost
+
+A request shows no cost (`-` in Logs) when:
+
+- the model has **no price** in the table and no estimate could be made. Every enabled chat provider has prices for its main models, but a provider's newest, preview or special-purpose models may not, and neither do Perplexity's `sonar-pro`, `sonar-reasoning-pro` and `sonar-deep-research` (Perplexity publishes no per-token price for them). The [Providers](/docs/providers/) page shows how many models each provider has priced;
+- the provider returned **no token counts**, for example on an error or a stream that broke off. A **successful** response without token counts is marked **Usage missing** in Logs (error code `usage_missing`): the provider answered and probably billed you, but OpenPike could not read how much, so its cost is unknown rather than zero. Filter Logs by **Usage missing** to find them.
+
+Those requests still count toward the plan's monthly requests, but they add nothing to [budgets](/docs/features/budgets/). If you rely on a budget for an unpriced provider, use a request-per-minute [loop limit](/docs/features/loop-detection/) as well.
+
+## Hosted tools are not included
+
+On `/v1/responses`, OpenAI's hosted tools (web search, file search, code interpreter and the like) are passed through and work as usual, but the provider bills them per call on top of tokens. OpenPike's cost covers **tokens only**: tool call fees are not in Logs, Activity or budgets. Check them in your provider's own billing.
+
+The same goes for **search fees** charged per request: Perplexity's search fees and OpenRouter's web search fees are not in OpenPike's cost, only the tokens.
+
+## Accuracy
+
+The cost is OpenPike's calculation from the provider's public prices, not the provider's invoice. Discounts, credits, batch pricing, priority tiers and regional pricing on your provider account are not applied. Temporary promotional discounts (for example on DeepInfra) are not applied either, so those requests show the list price. Fireworks Fast, Flex and US-only models are priced under their own model IDs; Fireworks Priority (`service_tier: "priority"`) is priced at the Standard rate. DeepSeek's off-peak discount is not applied either: DeepSeek requests are priced at its peak rates, so they show an upper bound.

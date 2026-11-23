@@ -1,0 +1,34 @@
+---
+title: Anthropic
+description: Use your Anthropic API key through OpenPike, on the messages endpoint.
+sidebar:
+  order: 2
+---
+
+import PriceTable from "../../../components/PriceTable.astro";
+
+{/* Key page read 2026-11-16 from https://platform.claude.com/docs/en/get-started */}
+
+OpenPike sends `anthropic/...` models to Anthropic's Messages API with your own Anthropic key.
+
+## Your key
+
+Create a key in the Claude Console at [platform.claude.com/settings/keys](https://platform.claude.com/settings/keys) and add it on the **Providers** page.
+
+## Calling Claude models
+
+- **Endpoint:** `POST /v1/messages`, Anthropic's own format.
+- **Model names:** `anthropic/` plus Anthropic's model ID, for example `anthropic/claude-sonnet-5-5` or `anthropic/claude-haiku-5-5`.
+- **SDK:** the Anthropic SDK with its base URL set to `https://api.openpike.dev` (no `/v1`). See [Anthropic SDK](/docs/integrations/anthropic-sdk/).
+- **Headers:** `anthropic-version` and `anthropic-beta` pass through to Anthropic unchanged, so beta features work.
+
+## Quirks
+
+- **Messages only.** Claude models are not served on `/v1/chat/completions`: calling one there returns `400 unsupported_format`. OpenPike does not translate between formats.
+- **Prompt caching.** Cache reads and writes are priced separately, and 1-hour cache writes use their own price when Anthropic reports them.
+- **Errors** from OpenPike on `/v1/messages` use Anthropic's error shape, so the SDK raises its usual exceptions.
+- Models Anthropic has retired are not priced, because requests to them fail.
+
+## Prices
+
+<PriceTable provider="anthropic" />
