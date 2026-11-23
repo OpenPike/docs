@@ -17,7 +17,7 @@ Not unless an organization owner turns on prompt logging for a workspace, which 
 
 ## Does OpenPike add latency?
 
-OpenPike checks budgets and limits in one call, in parallel with reading your request, then streams the response straight through without buffering. The `server-timing` header on each response shows the time spent on the checks, and **Logs** shows OpenPike's overhead per request.
+OpenPike checks budgets and limits in one call, in parallel with reading your request and preparing your provider key, then streams the response straight through without buffering. The `server-timing` header on each response breaks the time down by step, and **Logs** shows OpenPike's overhead per request. See [Latency](/docs/features/usage-and-cost/#latency).
 
 ## Which tools and SDKs work?
 

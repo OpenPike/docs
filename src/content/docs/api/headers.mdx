@@ -31,7 +31,7 @@ OpenPike removes every `x-openpike-*` header and your key (`Authorization`, `x-a
 | `x-openpike-provider` | When a provider answered | The provider that served the request, or returned the error |
 | `x-openpike-model` | When a provider answered | The `provider/model` that served it; differs from the request for aliases |
 | `x-openpike-attempts` | When a provider answered | Upstream attempts; 1 when no fallback happened |
-| `server-timing` | When a provider answered | `gate;dur=<ms>`, the time spent checking budgets, pauses and plan limits |
+| `server-timing` | Always on `/v1/*` requests | The time spent on each step in milliseconds: `auth`, `body`, `gate` (budgets, pauses and plan limits), `route`, `key`, `overhead` (auth plus the time from your body being fully read until the provider call starts; excludes `body`) and `connect` (until the provider's response headers). Only the steps a request reached are listed. See [Latency](/docs/features/usage-and-cost/#latency) |
 | `retry-after` | On OpenPike's `429` blocks, and passed through from the provider on its errors | Seconds until the request may succeed |
 
 The provider's own response headers, such as rate limit information, are passed through as well.

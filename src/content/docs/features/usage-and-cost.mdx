@@ -19,6 +19,17 @@ You see it in:
 
 Logs are kept for the plan's log retention: 3 days on Free, 30 on Team, 90 on Business. Older rows are deleted every night.
 
+## Latency
+
+OpenPike's overhead is the time OpenPike spends before the provider call starts, counted from your request body being fully received. It excludes the request upload, which a direct call to the provider waits for too; that is reported separately as `body`. The response then streams straight through without buffering, so OpenPike adds nothing to the time between tokens. The overhead is made of the key check, budgets and limits, routing and the provider key (not reading the request):
+
+- **Key check:** looking up your virtual key, its workspace and organization. Kept in memory for a minute, so it is usually well under a millisecond.
+- **Budgets and limits:** one call to your organization's limits (budgets, pauses, loop detection and the plan's request limit). It runs at the same time as reading the request, routing and preparing the provider key, and nothing is sent to the provider until it answers.
+- **Routing:** resolving the model name or alias.
+- **Provider key:** loading and decrypting your provider key.
+
+Every response carries a `server-timing` header with these steps, for example `auth;dur=0.3, body;dur=2.1, gate;dur=9.8, route;dur=0.1, key;dur=0.4, overhead;dur=10.6, connect;dur=412.0`. `overhead` leaves out `body`, and the other steps overlap, so they do not add up to it. `connect` is the provider's own time to send its response headers, not OpenPike's. `body` is the time to receive and parse your request: it grows with the request size, and a direct call to the provider waits for the same upload. **Logs** shows the gateway overhead and the same steps for every request.
+
 ## Where the token counts come from
 
 OpenPike never counts tokens itself. It reads the provider's own usage data from the response: the `usage` object of an OpenAI-format response, the `message_start` and `message_delta` events of an Anthropic stream, and the final `response.completed` (or `response.incomplete`, `response.failed`) event of a Responses stream. For streamed chat completions it asks OpenAI-compatible providers to include usage in the last chunk (`stream_options.include_usage`), except providers known to reject that option.
