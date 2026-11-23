@@ -41,7 +41,6 @@ client = Anthropic(
     base_url="https://api.openpike.dev",
     api_key=virtual_key,
     default_headers={"x-openpike-run": task.id, "x-openpike-run-label": task.title},
-    max_retries=0,  # a stopped run answers 429 run_limit_exceeded; retrying does not help
 )
 ```
 
@@ -50,7 +49,6 @@ const client = new Anthropic({
   baseURL: "https://api.openpike.dev",
   apiKey: virtualKey,
   defaultHeaders: { "x-openpike-run": task.id, "x-openpike-run-label": task.title },
-  maxRetries: 0,
 });
 ```
 
@@ -61,7 +59,7 @@ For one request, pass `extra_headers={...}` in Python or `{ headers: {...} }` as
 - **Works:** `messages.create` and `messages.stream` with `anthropic/...` models, including tools, prompt caching, extended thinking and beta features, and with `deepseek/...` models for the features DeepSeek's Anthropic-compatible endpoint supports. `anthropic-version` and `anthropic-beta` headers pass through to the provider.
 - **Does not work:** token counting (`messages.count_tokens`), the Message Batches API, the Files API and other endpoints besides `/v1/messages`.
 - **Errors** come back in Anthropic's shape. OpenPike's own `429` blocks use the error type `rate_limit_error`; a budget block is told apart from Anthropic's rate limit by its message and by the missing `x-openpike-provider` header. See [Errors](/docs/api/errors/).
-- **Retries:** the SDK retries `429` responses by default. A budget or plan block will not clear in seconds, so lower `max_retries` for agents that should stop at once.
+**Retries:** keep the SDK's default retries on `429`. OpenPike refuses a blocked request before any provider call, so a few retries cost nothing, and they still cover provider `5xx` errors. On `budget_exceeded`, `loop_detected`, `scope_paused` or `run_limit_exceeded`, stop the task and tell the user instead of retrying the same request.
 
 ## Example
 

@@ -54,7 +54,6 @@ client = OpenAI(
     base_url="https://api.openpike.dev/v1",
     api_key=virtual_key,
     default_headers={"x-openpike-run": task.id, "x-openpike-run-label": task.title, "x-openpike-run-max-usd": "5"},
-    max_retries=0,  # a stopped run answers 429 run_limit_exceeded; retrying does not help
 )
 ```
 
@@ -63,7 +62,6 @@ const client = new OpenAI({
   baseURL: "https://api.openpike.dev/v1",
   apiKey: virtualKey,
   defaultHeaders: { "x-openpike-run": task.id, "x-openpike-run-label": task.title },
-  maxRetries: 0,
 });
 ```
 
@@ -78,7 +76,7 @@ Use the SDK's raw response to read `x-openpike-request-id`, `x-openpike-model` a
 - **Works:** `client.chat.completions.create` with any model on `/v1/chat/completions`, streaming, tools and function calling, JSON mode and structured outputs where the provider supports them, `client.responses.create` with OpenAI, xAI, Groq and OpenRouter models, and `client.models.list()`. OpenPike passes request fields through untouched.
 - **Does not work:** `client.responses.retrieve`, `.cancel`, `.delete` and `.input_items`, background responses, embeddings, images, audio, files, batches and assistants. OpenPike does not serve those endpoints.
 - **Errors** come back in OpenAI's shape, so the SDK raises its usual exceptions: `AuthenticationError` for `401`, `RateLimitError` for OpenPike's `429` blocks. Check the error `code` to tell a budget block from a provider rate limit; see [Errors](/docs/api/errors/).
-- **Retries:** the SDK retries `429` responses by default. A budget or plan block will not clear in seconds, so lower `max_retries` for agents that should stop at once.
+**Retries:** keep the SDK's default retries on `429`. OpenPike refuses a blocked request before any provider call, so a few retries cost nothing, and they still cover provider `5xx` errors. On `budget_exceeded`, `loop_detected`, `scope_paused` or `run_limit_exceeded`, stop the task and tell the user instead of retrying the same request.
 
 ## Example
 

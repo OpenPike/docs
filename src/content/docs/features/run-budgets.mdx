@@ -60,7 +60,7 @@ On `/v1/messages` the error has the Anthropic shape with type `rate_limit_error`
 - **Retries keep it stopped.** Refused requests count as activity, so a client that keeps retrying stays refused. The run ID is free again only after the idle time passes with no requests at all.
 
 <Aside type="tip">
-Lower your SDK's retry count for agents, or handle `run_limit_exceeded` yourself: retrying a stopped run only adds refused requests to its log.
+Keep your SDK's default retries on `429`, since refused requests never reach a provider. On `run_limit_exceeded`, stop the task and tell the user: retrying a stopped run only adds refused requests to its log.
 </Aside>
 
 ## Alerts

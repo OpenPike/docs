@@ -33,7 +33,7 @@ npm install @langchain/openai            # TypeScript
 
 - **Stay on Chat Completions for most providers.** LangChain's docs say `ChatOpenAI` switches to OpenAI's Responses API when you use a Responses-only feature or set `use_responses_api=True`. OpenPike serves the Responses API only for providers that serve it themselves (OpenAI, xAI, Groq and OpenRouter; it does not translate formats), so leave those off for DeepSeek, Gemini and the other providers.
 - **Claude models** need the Anthropic format; they are not available through `ChatOpenAI`. Use an OpenAI-format model, or the [Anthropic SDK](/docs/integrations/anthropic-sdk/) directly.
-- **A run ID per task.** To cap one agent run with a [run budget](/docs/features/run-budgets/), create the model per task with `x-openpike-run` in `default_headers` (TypeScript: `configuration.defaultHeaders`), and set `max_retries=0` so a stopped run is not retried.
+- **A run ID per task.** To cap one agent run with a [run budget](/docs/features/run-budgets/), create the model per task with `x-openpike-run` in `default_headers` (TypeScript: `configuration.defaultHeaders`). Keep the SDK's default retries: a blocked request never reaches the provider, and on `run_limit_exceeded` the task should stop and tell the user.
 - Agents, chains and tools built on `ChatOpenAI` work unchanged, and every call they make shows in OpenPike's **Logs**.
 
 ## Example

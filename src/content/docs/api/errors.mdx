@@ -76,6 +76,6 @@ Provider errors keep the provider's own `error.type`. To tell an OpenPike `429` 
 
 ## Retrying
 
-- `budget_exceeded`, `loop_detected`, `plan_limit_reached`, `scope_paused` and `run_limit_exceeded` do not clear by retrying a few seconds later. SDKs retry `429` by default; lower their retry count for agents, or handle these codes yourself.
+- `budget_exceeded`, `loop_detected`, `plan_limit_reached`, `scope_paused` and `run_limit_exceeded` do not clear by retrying a few seconds later. Keep the SDK's default retries on `429`: OpenPike refuses these requests before any provider call, so a few retries cost nothing. Then stop the task and tell the user rather than looping.
 - `plan_limit_throttled` allows 10 requests a minute: retry after `retry-after`.
 - `upstream_error` with `429` or `5xx`, and `upstream_unreachable`, are worth retrying, or use an [alias](/docs/features/aliases-and-fallbacks/) so OpenPike falls back for you.

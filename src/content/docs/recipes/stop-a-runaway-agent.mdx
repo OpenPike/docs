@@ -39,7 +39,7 @@ On **Alerts**, add your email or a Slack channel and select **Send test**. A loo
 
 ## What the agent sees
 
-While paused or blocked, the agent's requests get a `429` with a `retry-after` header: `loop_detected` for a loop pause, `budget_exceeded` for the hard limit. Most SDKs retry `429` a few times and then fail, which stops the agent. To resume early, select **Resume** next to the agent on the **Agents** page, or raise the limit.
+While paused or blocked, the agent's requests get a `429` with a `retry-after` header: `loop_detected` for a loop pause, `budget_exceeded` for the hard limit. Keep the SDK's default retries: OpenPike refuses these requests before any provider call, so a few `429` retries cost nothing, and they still cover provider `5xx` errors. After them, the agent should stop the task and tell the user, not loop. To resume early, select **Resume** next to the agent on the **Agents** page, or raise the limit.
 
 ## Also stop it by hand
 
