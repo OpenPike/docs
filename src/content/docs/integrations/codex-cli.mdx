@@ -132,3 +132,4 @@ codex exec "List the files in this directory and say which one is largest."
 - **Budgets and loop limits** apply as for any agent. A hard budget or a loop pause stops Codex with a `429`; see [Stop a runaway agent](/docs/recipes/stop-a-runaway-agent/).
 - **Hosted tools** such as web search are billed by OpenAI on top of tokens, and are not in OpenPike's cost. See [Usage and cost](/docs/features/usage-and-cost/#hosted-tools-are-not-included).
 - **Background responses** (`background: true`) are not supported by OpenPike. Codex does not use them.
+- **Skill:** the [OpenPike skills repo](https://github.com/OpenPike/skills) has an `openpike-setup` skill that Codex can load to set this up for you. It never asks for or writes a provider key.
