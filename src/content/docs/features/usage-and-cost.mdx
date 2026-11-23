@@ -15,7 +15,16 @@ You see it in:
 
 - **Logs:** every request, filterable by time, agent, key, model, provider, status and tag, with a live tail. Select a row for all its details.
 - **Activity:** spend over time, grouped by model, agent or provider, with totals and the top agents and keys. When an organization has several workspaces, **All workspaces** shows them together.
-- **Agents** and **Keys:** spend this month per `agent` tag and per virtual key.
+- **Agents** and **Keys:** spend this month per `agent` tag and per virtual key, with an error rate and a count of blocked requests.
+
+## Blocked and errors
+
+The dashboard counts two kinds of failed request apart.
+
+- **Blocked:** OpenPike refused the request before any provider call: `budget_exceeded`, `loop_detected`, `scope_paused`, `run_limit_exceeded`, `plan_limit_reached`, `plan_limit_throttled` or `organization_suspended`. This is OpenPike doing its job, so blocked requests are not in the error rate. They show as, for example, "2 blocked" next to it, and as **Blocked** in Logs.
+- **Errors:** every other request that failed with status 400 or above: provider 4xx and 5xx, timeouts, connection failures, and request problems such as an unknown model or a missing provider key.
+
+The error rate is errors divided by the requests that were not blocked. A correctly capped agent shows 0% and a count of blocked requests; a provider outage shows as errors. Days summarized before this change keep their old counts, which included blocked requests.
 
 Logs are kept for the plan's log retention: 3 days on Free, 30 on Team, 90 on Business. Older rows are deleted every night.
 
