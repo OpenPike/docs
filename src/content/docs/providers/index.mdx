@@ -15,12 +15,20 @@ To use one, add your key for it on the **Providers** page of a workspace, then n
 ## Status
 
 - **Tested** providers passed OpenPike's live test against the real provider on the date shown.
-- **Available** providers are enabled from the provider's documented API and should work, but have not been tested live by OpenPike yet. If you hit a problem with one, tell [support@openpike.dev](mailto:support@openpike.dev).
+- **Available** providers are enabled from the provider's documented API and should work, but have not been tested live by OpenPike yet. If you hit a problem with one, [report it](#something-doesnt-work-with-a-provider).
 - **Not yet available** providers are planned: they stay off until their API address is confirmed with a live request, and some need a different sign-in than an API key (Google Vertex AI, Amazon Bedrock, Azure). Providers that do not serve chat models, such as speech, image, video and embeddings APIs, are not listed.
 
 **Prices** shows how many of the provider's models have a known price. Requests to unpriced models are tracked and count toward plan limits, but show no cost and add nothing to budgets. See [Usage and cost](/docs/features/usage-and-cost/).
 
 Prices are open: see or fix them on GitHub in [OpenPike/models](https://github.com/OpenPike/models), which publishes this catalog and price table with a schema for each.
+
+## Something doesn't work with a provider
+
+Open the [Provider not working](https://github.com/OpenPike/models/issues/new?template=provider-problem.yml) form on GitHub. It asks for the provider, model, endpoint, what happened (the HTTP status and the `code` from OpenPike's error response) and when. In the dashboard, the **Report a problem** link on the Providers page and on a failed request in Logs opens the same form with those fields filled in.
+
+Never include a key or any prompt text: the status and error code are enough. A 401 or 403 from a provider is usually the key itself (wrong, expired or without access to that model), so check it with **Test** on the Providers page first.
+
+The difference matters when you report: a **Tested** provider has been checked live by OpenPike, so a failure there is most likely your key or request. An **Available** provider has not, so a failure may be OpenPike's own gap, and a report is the fastest way for us to find it.
 
 ## Providers you can use
 
