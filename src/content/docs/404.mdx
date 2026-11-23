@@ -1,0 +1,18 @@
+---
+title: Page not found
+description: This docs page does not exist. It may have moved, or the address may be mistyped.
+template: splash
+pagefind: false
+editUrl: false
+---
+
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+The address may be old or mistyped. Try one of these instead.
+
+<CardGrid>
+  <LinkCard title="Docs home" description="Start from the overview." href="/docs/" />
+  <LinkCard title="Quickstart" description="Send your first request through OpenPike." href="/docs/quickstart/" />
+  <LinkCard title="openpike.dev" description="The OpenPike home page." href="https://openpike.dev/" />
+  <LinkCard title="Contact us" description="Tell us about a broken link, or ask a question." href="https://openpike.dev/contact/" />
+</CardGrid>
